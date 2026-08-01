@@ -515,41 +515,17 @@ io.on("connection", (socket) => {
     const val = Math.max(0, Math.min(10, Math.round(Number(rating) || 0)));
     room.ratings[idx] = val;
 
-    // Both rated -> finalize: exchange ownership and build verdict.
+    // Both rated -> do NOT execute the trade. The ratings are collected as
+    // feedback only; no ownership is exchanged. Both players are simply
+    // directed back to the lobby.
     if (room.ratings.p1 !== null && room.ratings.p2 !== null) {
-      room.phase = "endrated";
-      const avg = (room.ratings.p1 + room.ratings.p2) / 2;
-      const status = avg >= 5 ? "good" : "bad";
-      room.endResult = {
-        status,
-        avgRating: avg,
-        ratings: { p1: room.ratings.p1, p2: room.ratings.p2 },
-        // Ownership exchanged (like accept).
-        squishies: {
-          p1: [...room.squishies.p2],
-          p2: [...room.squishies.p1],
-        },
-        endProofs: {
-          p1: [...room.endProofs.p1],
-          p2: [...room.endProofs.p2],
-        },
-      };
-      room.tradeResult = {
-        status: status === "good" ? "success" : "bad",
-        message: status === "good"
-          ? "Trade Successful! Ownership exchanged."
-          : "Trade ended and rated as a bad trade.",
-        squishies: room.endResult.squishies,
-      };
-      console.log(`[submitRating] ${idx} rated ${val} in ${code}. End result: ${status}.`);
-
-      // BOTH players have submitted ratings now — close the room for
-      // everyone shortly after, so both players get to see the final
-      // result before being returned to the lobby.
+      console.log(`[submitRating] ${idx} rated ${val} in ${code}. Both rated -> closing room, no trade executed.`);
+      // Give both players a moment to see the "rating submitted" confirmation
+      // before the room closes and everyone is returned to the lobby.
       if (room.autoCloseTimer) clearTimeout(room.autoCloseTimer);
       room.autoCloseTimer = setTimeout(() => {
         closeRoom(code);
-      }, 4000);
+      }, 1500);
     } else {
       console.log(`[submitRating] ${idx} rated ${val} in ${code}. Waiting for other.`);
     }

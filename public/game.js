@@ -762,12 +762,16 @@ socket.on("roomState", (state) => {
   }
 
   // ------------------------------------------------
-  // End-trade: final rated phase -> show result
+  // End-trade: final rated phase
+  // The trade is NOT executed — both players have rated and the room will
+  // close automatically so everyone returns to the lobby. Show a brief
+  // confirmation while we wait for the server to close the room.
   // ------------------------------------------------
   if (state.phase === "endrated") {
     hide(endConsentOverlay);
     hide(endProofModal);
-    showResult(state);
+    hide(resultOverlay);
+    myTurnHint.textContent = "✅ Trade ended! Thanks for rating — returning to lobby...";
     return;
   }
 });
