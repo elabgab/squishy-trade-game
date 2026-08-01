@@ -67,6 +67,7 @@ function emitRoomState(room) {
     squishies: room.squishies,
     pendingAdd: room.pendingAdd,
     accepted: room.accepted,
+    addRequestedBy: room.addRequestedBy || null,
     tradeResult: room.tradeResult || null,
   };
   io.to(room.code).emit("roomState", payload);
@@ -203,6 +204,7 @@ io.on("connection", (socket) => {
       const other = idx === "p1" ? "p2" : "p1";
       room.pendingAdd = other;
       room.accepted = { p1: false, p2: false }; // Adding resets accept flags
+      room.addRequestedBy = null; // clear the pending add request
     }
 
     console.log(`[uploadOffer] ${idx} uploaded in ${code}`);
@@ -262,6 +264,7 @@ io.on("connection", (socket) => {
     // If both accepted => trade successful + swap ownership
     if (room.accepted.p1 && room.accepted.p2) {
       room.phase = "success";
+      room.addRequestedBy = null;
       room.tradeResult = {
         status: "success",
         message: "Trade Successful! Ownership exchanged.",
@@ -294,6 +297,7 @@ io.on("connection", (socket) => {
 
     const idx = socket.data.playerIndex;
     room.phase = "bad";
+    room.addRequestedBy = null;
     room.tradeResult = {
       status: "bad",
       message: "Trade Unsuccessful (Bad Trade).",

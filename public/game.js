@@ -328,8 +328,11 @@ function updateActions(state) {
 
   // Negotiating phase
   if (pendingWho === "me") {
-    myTurnHint.textContent = "📤 " + opponentNameStr + " wants to add! Upload another squishy.";
+    // It's my turn to upload — either upload another squishy (accept the
+    // opponent's Add request) OR decline to cancel the trade entirely.
     uploadBtn.disabled = false;
+    declineBtn.disabled = false;
+    myTurnHint.textContent = "📤 " + opponentNameStr + " wants to add! Upload another squishy or decline the trade.";
     return;
   }
 
