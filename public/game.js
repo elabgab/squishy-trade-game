@@ -402,14 +402,7 @@ ratingSubmitBtn.addEventListener("click", () => {
       proofStatus.textContent = "❌ " + ((res && res.error) || "Rating submit failed.");
     } else {
       iSubmittedRating = true;
-      proofStatus.textContent = "✅ Rating submitted! Leaving room...";
-      // After the rating is submitted, close the room for both players
-      // and return to the lobby.
-      setTimeout(() => {
-        socket.emit("leaveRoom", () => {
-          window.location.reload();
-        });
-      }, 800);
+      proofStatus.textContent = "✅ Rating submitted! Waiting for " + opponentNameStr + " to submit theirs...";
     }
   });
 });

@@ -94,6 +94,7 @@ function initEndTradeFields(room) {
   room.ratings = { p1: null, p2: null };
   room.ratingPreviews = { p1: null, p2: null };
   room.endResult = null;
+  room.autoCloseTimer = null;
 }
 
 function resetTradeState(room) {
@@ -105,6 +106,25 @@ function resetTradeState(room) {
   room.originalOwners = {};
   // Start: Player 1 uploads initial offer
   emitRoomState(room);
+}
+
+// Close a room for everyone: notify all players, clean up socket
+// bindings, and delete the room from memory. Any pending auto-close
+// timer is cancelled so we don't try to close a room twice.
+function closeRoom(code) {
+  const room = rooms.get(code);
+  if (!room) return;
+  if (room.autoCloseTimer) {
+    clearTimeout(room.autoCloseTimer);
+    room.autoCloseTimer = null;
+  }
+  io.to(code).emit("roomClosed");
+  for (const p of room.players) {
+    roomBySocket.delete(p.id);
+    const s = io.sockets.sockets.get(p.id);
+    if (s) s.leave(code);
+  }
+  rooms.delete(code);
 }
 
 // ------------------------------------------------------------
@@ -522,6 +542,14 @@ io.on("connection", (socket) => {
         squishies: room.endResult.squishies,
       };
       console.log(`[submitRating] ${idx} rated ${val} in ${code}. End result: ${status}.`);
+
+      // BOTH players have submitted ratings now — close the room for
+      // everyone shortly after, so both players get to see the final
+      // result before being returned to the lobby.
+      if (room.autoCloseTimer) clearTimeout(room.autoCloseTimer);
+      room.autoCloseTimer = setTimeout(() => {
+        closeRoom(code);
+      }, 4000);
     } else {
       console.log(`[submitRating] ${idx} rated ${val} in ${code}. Waiting for other.`);
     }
@@ -538,15 +566,7 @@ io.on("connection", (socket) => {
 
     // Tell everyone in the room (including the leaver) that it is closing,
     // so every player returns to the lobby automatically.
-    io.to(code).emit("roomClosed");
-
-    // Remove all socket bindings and delete the room.
-    for (const p of room.players) {
-      roomBySocket.delete(p.id);
-      const s = io.sockets.sockets.get(p.id);
-      if (s) s.leave(code);
-    }
-    rooms.delete(code);
+    closeRoom(code);
 
     console.log(`[leaveRoom] ${socket.id} closed room ${code} for everyone.`);
     ack && ack({ ok: true });
@@ -559,6 +579,12 @@ io.on("connection", (socket) => {
 
     const room = rooms.get(code);
     if (!room) return;
+
+    // Cancel any pending auto-close so a stale timer doesn't fire later.
+    if (room.autoCloseTimer) {
+      clearTimeout(room.autoCloseTimer);
+      room.autoCloseTimer = null;
+    }
 
     const idx = room.players.findIndex((p) => p.id === socket.id);
     if (idx !== -1) room.players.splice(idx, 1);
