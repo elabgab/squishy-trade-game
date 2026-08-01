@@ -49,33 +49,9 @@ const resultTitle = $("resultTitle");
 const resultText = $("resultText");
 const resultSquishies = $("resultSquishies");
 const newTradeBtn = $("newTradeBtn");
-const resultEndBtn = $("resultEndBtn");
 
 // Player controls
 const leaveBtn = $("leaveBtn");
-const endTradeBtn = $("endTradeBtn");
-
-// Confirm overlay
-const confirmOverlay = $("confirmOverlay");
-const confirmEmoji = $("confirmEmoji");
-const confirmTitle = $("confirmTitle");
-const confirmText = $("confirmText");
-const confirmVotes = $("confirmVotes");
-const confirmYesBtn = $("confirmYesBtn");
-const confirmNoBtn = $("confirmNoBtn");
-
-// Showcase overlay
-const showcaseOverlay = $("showcaseOverlay");
-const showcaseSub = $("showcaseSub");
-const screenshotBtn = $("screenshotBtn");
-const myScreenshots = $("myScreenshots");
-const showcaseReceived = $("showcaseReceived");
-const ratingRows = $("ratingRows");
-const showcaseRating = $("showcaseRating");
-const showcaseRatingLabel = $("showcaseRatingLabel");
-const submitRatingBtn = $("submitRatingBtn");
-const showcaseDoneBtn = $("showcaseDoneBtn");
-const screenshotInput = $("screenshotInput");
 
 // ------------------------------------------------------------
 // Local state
@@ -84,8 +60,6 @@ let playerIndex = null;   // 'p1' | 'p2'
 let roomCode = null;
 let opponentNameStr = "OPPONENT";
 let myNameStr = "YOU";
-let confirmMode = null;   // 'leave' | 'end'
-const rated = {};         // players who already submitted a rating
 
 // ------------------------------------------------------------
 // Helpers
@@ -132,8 +106,7 @@ function resetActions() {
 // Screen switching
 // ------------------------------------------------------------
 function showScreen(screenId) {
-  [lobby, waiting, game].forEach((el) => hide(el));
-  [resultOverlay, confirmOverlay, showcaseOverlay].forEach((el) => hide(el));
+  [lobby, waiting, game, resultOverlay].forEach((el) => hide(el));
   show(document.getElementById(screenId));
 }
 
@@ -230,43 +203,6 @@ fileInput.addEventListener("change", () => {
 });
 
 // ------------------------------------------------------------
-// Screenshot handler (showcase)
-// ------------------------------------------------------------
-screenshotBtn.addEventListener("click", () => screenshotInput.click());
-
-screenshotInput.addEventListener("change", () => {
-  const file = screenshotInput.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const img = new Image();
-    img.onload = () => {
-      const MAX = 500;
-      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
-      const width = Math.max(1, Math.round(img.width * scale));
-      const height = Math.max(1, Math.round(img.height * scale));
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0, width, height);
-      const pushed = cleanUrl(canvas.toDataURL("image/jpeg", 0.85)) + "#t=" + Date.now();
-      socket.emit("uploadScreenshot", pushed, (res) => {
-        if (!res || !res.ok) {
-          showcaseSub.textContent = "❌ " + ((res && res.error) || "Upload failed.");
-        } else {
-          showcaseSub.textContent = "📸 Screenshot added!";
-          screenshotInput.value = "";
-        }
-      });
-    };
-    img.onerror = () => { showcaseSub.textContent = "❌ Could not read that image."; };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
-});
-
-// ------------------------------------------------------------
 // Action buttons (Add, Accept, Decline)
 // ------------------------------------------------------------
 addBtn.addEventListener("click", () => {
@@ -314,191 +250,14 @@ newTradeBtn.addEventListener("click", () => {
   });
 });
 
-// End trade (from result overlay)
-resultEndBtn.addEventListener("click", () => {
-  socket.emit("endTrade", (res) => {
-    if (!res || !res.ok) {
-      myTurnHint.textContent = "❌ " + ((res && res.error) || "End failed.");
-    }
-  });
-});
-
-// Showcase done button
-showcaseDoneBtn.addEventListener("click", () => {
-  hide(showcaseOverlay);
-  myTurnHint.textContent = "";
-  socket.emit("restartTrade", (res) => {
-    if (!res || !res.ok) {
-      show(showcaseOverlay);
-    }
-  });
-});
-
 // ------------------------------------------------------------
-// Leave / End trade buttons (bottom of my area)
+// Leave room button (bottom of my area)
 // ------------------------------------------------------------
 leaveBtn.addEventListener("click", () => {
-  leaveBtn.disabled = true;
-  socket.emit("leaveGame", (res) => {
-    leaveBtn.disabled = false;
-    if (res && res.ok && res.home) {
-      // Everyone agreed to leave -> return to lobby.
-      window.location.reload();
-    }
-  });
+  // Reloading disconnects the socket, removing this player from the
+  // room and letting the server reset/tidy the room for the opponent.
+  window.location.reload();
 });
-
-endTradeBtn.addEventListener("click", () => {
-  endTradeBtn.disabled = true;
-  socket.emit("endTrade", (res) => {
-    endTradeBtn.disabled = false;
-    if (!res || !res.ok) {
-      myTurnHint.textContent = "❌ " + ((res && res.error) || "End failed.");
-    }
-  });
-});
-
-// ------------------------------------------------------------
-// Confirm overlay (mutual agreement)
-// ------------------------------------------------------------
-confirmYesBtn.addEventListener("click", () => {
-  if (confirmMode === "leave") socket.emit("leaveGame");
-  else if (confirmMode === "end") socket.emit("endTrade");
-  confirmNoBtn.disabled = false;
-});
-
-confirmNoBtn.addEventListener("click", () => {
-  socket.emit("cancelVote");
-  hide(confirmOverlay);
-});
-
-function openConfirm(mode, state) {
-  confirmMode = mode;
-  confirmYesBtn.disabled = false;
-  confirmNoBtn.disabled = false;
-  if (mode === "leave") {
-    confirmEmoji.textContent = "👋";
-    confirmTitle.textContent = "Leave Game?";
-    confirmText.textContent = "Both players must agree to leave the game.";
-  } else {
-    confirmEmoji.textContent = "🏁";
-    confirmTitle.textContent = "End Trade?";
-    confirmText.textContent = "Both players must agree to end and showcase the trade.";
-  }
-  updateConfirmVotes(state);
-  show(confirmOverlay);
-}
-
-function updateConfirmVotes(state) {
-  if (!confirmOverlay.classList.contains("hidden")) {
-    const votes = confirmMode === "leave" ? state.leaveVotes : state.endVotes;
-    let txt = "";
-    if (votes) {
-      const me = votes[playerIndex] ? "✓" : "·";
-      const opp = votes[playerIndex === "p1" ? "p2" : "p1"] ? "✓" : "·";
-      txt = "You: " + me + "   Opponent: " + opp;
-    }
-    confirmVotes.textContent = txt;
-  }
-}
-
-// ------------------------------------------------------------
-// Rating
-// ------------------------------------------------------------
-function updateRatingLabel() {
-  const v = Number(showcaseRating.value || "1");
-  showcaseRatingLabel.textContent = v === 1 ? "GOOD TRADE 😊" : "BAD TRADE 😢";
-}
-
-if (showcaseRating) showcaseRating.addEventListener("input", updateRatingLabel);
-
-submitRatingBtn.addEventListener("click", () => {
-  const value = Number(showcaseRating.value || "1") === 1 ? "GOOD" : "BAD";
-  submitRatingBtn.disabled = true;
-  socket.emit("submitRating", value, (res) => {
-    if (!res || !res.ok) {
-      submitRatingBtn.disabled = false;
-      showcaseSub.textContent = "❌ " + ((res && res.error) || "Rating failed.");
-    }
-  });
-});
-
-// ------------------------------------------------------------
-// Showcase overlay
-// ------------------------------------------------------------
-function openShowcase(state) {
-  const sc = state.showcase;
-  if (!sc) return;
-  showcaseSub.textContent = "Upload a screenshot of the squishies you got from the trade!";
-  myScreenshots.innerHTML = "";
-  (sc.screenshots[playerIndex] || []).forEach((src) => {
-    const card = document.createElement("div");
-    card.className = "squishy-card";
-    const img = document.createElement("img");
-    img.src = cleanUrl(src);
-    img.alt = "Screenshot";
-    card.appendChild(img);
-    myScreenshots.appendChild(card);
-  });
-
-  const received = sc.received[playerIndex] || [];
-  showcaseReceived.innerHTML = "";
-  if (received.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "result-empty";
-    empty.textContent = "No squishies received.";
-    showcaseReceived.appendChild(empty);
-  } else {
-    received.forEach((src) => {
-      const img = document.createElement("img");
-      img.src = cleanUrl(src);
-      img.alt = "Received";
-      showcaseReceived.appendChild(img);
-    });
-  }
-
-  // Rating rows
-  ratingRows.innerHTML = "";
-  for (const p of state.players) {
-    const r = state.ratings ? state.ratings[p.id === (playerIndex === "p1" ? "p1" : "p1") ? "p1" : "p2"] : null;
-    summaryHelper(state, ratingRows, r);
-  }
-  renderRatings(state);
-
-  show(showcaseOverlay);
-}
-
-function summaryHelper(state, container, ratingValue) {
-  // placeholder for helper below
-}
-
-function renderRatings(state) {
-  const votes = state.ratings || {};
-  const p1 = votes.p1;
-  const p2 = votes.p2;
-  ratingRows.innerHTML = "";
-  const mk = (label, val) => {
-    const row = document.createElement("div");
-    row.className = "rating-row";
-    row.textContent = label + ": " + (val ? (val === "GOOD" ? "👍 GOOD" : "👎 BAD") : "—");
-    ratingRows.appendChild(row);
-  };
-  const myVote = votes[playerIndex];
-  const oppVote = votes[playerIndex === "p1" ? "p2" : "p1"];
-  if (myNameStr) mk(myNameStr + " (you)", myVote);
-  if (opponentNameStr) mk(opponentNameStr, oppVote);
-
-  submitRatingBtn.disabled = !!myVote;
-  if (p1 === "GOOD" && p2 === "GOOD") {
-    showcaseSub.textContent = "🎉 Both rated this trade GOOD!";
-  } else if (p1 === "BAD" && p2 === "BAD") {
-    showcaseSub.textContent = "💔 Both rated this trade BAD.";
-  } else if (p1 || p2) {
-    showcaseSub.textContent = "⭐ Waiting for the other player's rating...";
-  } else {
-    showcaseSub.textContent = "How was the trade? Rate it below!";
-  }
-}
 
 // ------------------------------------------------------------
 // Turn / state helpers
@@ -619,7 +378,6 @@ function showResult(state) {
   }
 
   newTradeBtn.classList.remove("hidden");
-  resultEndBtn.classList.remove("hidden");
 
   const mySquishiesAfter = (result.squishies && result.squishies[playerIndex]) || [];
   resultSquishies.innerHTML = "";
@@ -660,12 +418,10 @@ socket.on("roomState", (state) => {
   gameRoomCode.textContent = "ROOM: " + (state.code || "");
 
   // Fresh trade started -> close overlays.
-  if (state.phase !== "success" && state.phase !== "bad" && state.phase !== "showcase") {
+  if (state.phase !== "success" && state.phase !== "bad") {
     hide(resultOverlay);
-    hide(confirmOverlay);
     myTurnHint.textContent = "";
     newTradeBtn.classList.add("hidden");
-    resultEndBtn.classList.add("hidden");
   }
 
   // Waiting phase -> show waiting screen.
@@ -674,15 +430,6 @@ socket.on("roomState", (state) => {
       showScreen("waiting");
       roomCodeDisplay.textContent = state.code;
     }
-    return;
-  }
-
-  // Showcase phase.
-  if (state.phase === "showcase") {
-    hide(resultOverlay);
-    hide(confirmOverlay);
-    if (game.classList.contains("hidden")) showScreen("game");
-    openShowcase(state);
     return;
   }
 
@@ -715,30 +462,10 @@ socket.on("roomState", (state) => {
   updateTradeMessage(state);
   updateActions(state);
 
-  // If not already showing showcase, handle result.
+  // Handle result.
   if (state.phase === "success" || state.phase === "bad") {
-    if (state.phase === "success" || state.phase === "bad") {
-      showResult(state);
-    }
+    showResult(state);
   }
-
-  // Show confirm overlay if a mutual vote is pending.
-  if (state.leaveVotes && (state.leaveVotes.p1 || state.leaveVotes.p2)) {
-    if (confirmMode !== "end") openConfirm("leave", state);
-  } else if (state.endVotes && (state.endVotes.p1 || state.endVotes.p2)) {
-    openConfirm("end", state);
-  } else if (confirmMode) {
-    // No pending votes -> close the confirm overlay.
-    hide(confirmOverlay);
-    confirmMode = null;
-  }
-
-  updateConfirmVotes(state);
-});
-
-// Go home (both players agreed to leave)
-socket.on("goHome", () => {
-  window.location.reload();
 });
 
 // Opponent left

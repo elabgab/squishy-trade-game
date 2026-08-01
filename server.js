@@ -69,10 +69,6 @@ function emitRoomState(room) {
     accepted: room.accepted,
     addRequestedBy: room.addRequestedBy || null,
     tradeResult: room.tradeResult || null,
-    leaveVotes: room.leaveVotes,
-    endVotes: room.endVotes,
-    ratings: room.ratings,
-    showcase: room.showcase,
   };
   io.to(room.code).emit("roomState", payload);
 }
@@ -84,10 +80,6 @@ function resetTradeState(room) {
   room.accepted = { p1: false, p2: false };
   room.tradeResult = null;
   room.originalOwners = {};
-  room.leaveVotes = { p1: false, p2: false };
-  room.endVotes = { p1: false, p2: false };
-  room.ratings = { p1: null, p2: null };
-  room.showcase = null;
   // Start: Player 1 uploads initial offer
   emitRoomState(room);
 }
@@ -117,10 +109,6 @@ io.on("connection", (socket) => {
       accepted: { p1: false, p2: false },
       tradeResult: null,
       originalOwners: {},
-      leaveVotes: { p1: false, p2: false },
-      endVotes: { p1: false, p2: false },
-      ratings: { p1: null, p2: null },
-      showcase: null,
     };
 
     rooms.set(code, room);
@@ -302,143 +290,6 @@ io.on("connection", (socket) => {
     emitRoomState(room);
   });
 
-  // --- Vote to leave the game -------------------------------------
-  socket.on("leaveGame", (ack) => {
-    const code = getRoomForSocket(socket.id);
-    if (!code) return ack && ack({ ok: false, error: "Not in a room." });
-    const room = rooms.get(code);
-    if (!room) return ack && ack({ ok: false, error: "Room missing." });
-
-    const idx = socket.data.playerIndex;
-    if (!idx) return ack && ack({ ok: false, error: "Not assigned." });
-
-    room.leaveVotes[idx] = true;
-    room.endVotes = { p1: false, p2: false }; // leaving cancels end-trade voting
-
-    const both = room.leaveVotes.p1 && room.leaveVotes.p2;
-    console.log(`[leaveGame] ${idx} voted to leave in ${code}${both ? " -> both agreed, room closed" : ""}`);
-
-    // If both agree, close the room and tell every player to return home.
-    if (both) {
-      io.to(code).emit("goHome");
-      // Clean up socket bindings so players can start a fresh session.
-      for (const p of room.players) {
-        roomBySocket.delete(p.id);
-      }
-      rooms.delete(code);
-      ack && ack({ ok: true, home: true });
-      return;
-    }
-
-    ack && ack({ ok: true });
-    emitRoomState(room);
-  });
-
-  // --- Vote to end the trade (showcase) ---------------------------
-  socket.on("endTrade", (ack) => {
-    const code = getRoomForSocket(socket.id);
-    if (!code) return ack && ack({ ok: false, error: "Not in a room." });
-    const room = rooms.get(code);
-    if (!room) return ack && ack({ ok: false, error: "Room missing." });
-
-    // Ending the trade is only meaningful after a concluded trade.
-    if (room.phase !== "success" && room.phase !== "bad") {
-      return ack && ack({ ok: false, error: "The trade has not concluded yet." });
-    }
-
-    const idx = socket.data.playerIndex;
-    if (!idx) return ack && ack({ ok: false, error: "Not assigned." });
-
-    room.endVotes[idx] = true;
-    room.leaveVotes = { p1: false, p2: false }; // ending cancels leave voting
-
-    const both = room.endVotes.p1 && room.endVotes.p2;
-    console.log(`[endTrade] ${idx} voted to end in ${code}${both ? " -> both agreed, showcase phase" : ""}`);
-
-    if (both) {
-      room.phase = "showcase";
-      room.endVotes = { p1: false, p2: false };
-      room.ratings = { p1: null, p2: null };
-      room.showcase = {
-        screenshots: { p1: [], p2: [] },
-        received: {
-          // Showcase shows the squishies each player GOT from the trade.
-          p1: room.tradeResult && room.tradeResult.squishies ? room.tradeResult.squishies.p1 : [],
-          p2: room.tradeResult && room.tradeResult.squishies ? room.tradeResult.squishies.p2 : [],
-        },
-      };
-    }
-
-    ack && ack({ ok: true });
-    emitRoomState(room);
-  });
-
-  // --- Upload a screenshot for the showcase ------------------------
-  socket.on("uploadScreenshot", (imageUrl, ack) => {
-    const code = getRoomForSocket(socket.id);
-    if (!code) return ack && ack({ ok: false, error: "Not in a room." });
-    const room = rooms.get(code);
-    if (!room) return ack && ack({ ok: false, error: "Room missing." });
-    if (room.phase !== "showcase") {
-      return ack && ack({ ok: false, error: "Not in showcase phase." });
-    }
-    if (!room.showcase) {
-      return ack && ack({ ok: false, error: "Showcase not ready." });
-    }
-    if (!imageUrl || typeof imageUrl !== "string") {
-      return ack && ack({ ok: false, error: "Invalid image." });
-    }
-
-    const idx = socket.data.playerIndex;
-    if (!idx) return ack && ack({ ok: false, error: "Not assigned." });
-
-    room.showcase.screenshots[idx].push(imageUrl);
-    console.log(`[uploadScreenshot] ${idx} uploaded a screenshot in ${code}`);
-    ack && ack({ ok: true });
-    emitRoomState(room);
-  });
-
-  // --- Submit a trade rating (good / bad) --------------------------
-  socket.on("submitRating", (value, ack) => {
-    const code = getRoomForSocket(socket.id);
-    if (!code) return ack && ack({ ok: false, error: "Not in a room." });
-    const room = rooms.get(code);
-    if (!room) return ack && ack({ ok: false, error: "Room missing." });
-    if (room.phase !== "showcase") {
-      return ack && ack({ ok: false, error: "Not in showcase phase." });
-    }
-
-    const idx = socket.data.playerIndex;
-    if (!idx) return ack && ack({ ok: false, error: "Not assigned." });
-
-    const rating = String(value || "").toUpperCase();
-    if (rating !== "GOOD" && rating !== "BAD") {
-      return ack && ack({ ok: false, error: "Rating must be GOOD or BAD." });
-    }
-
-    room.ratings[idx] = rating;
-    console.log(`[submitRating] ${idx} rated ${rating} in ${code}`);
-    ack && ack({ ok: true });
-    emitRoomState(room);
-  });
-
-  // --- Cancel a vote (leave / end confirm) ------------------------
-  socket.on("cancelVote", (ack) => {
-    const code = getRoomForSocket(socket.id);
-    if (!code) return ack && ack({ ok: false, error: "Not in a room." });
-    const room = rooms.get(code);
-    if (!room) return ack && ack({ ok: false, error: "Room missing." });
-
-    const idx = socket.data.playerIndex;
-    if (!idx) return ack && ack({ ok: false, error: "Not assigned." });
-
-    if (room.leaveVotes) room.leaveVotes[idx] = false;
-    if (room.endVotes) room.endVotes[idx] = false;
-
-    ack && ack({ ok: true });
-    emitRoomState(room);
-  });
-
   // --- Decline trade -----------------------------------------------
   socket.on("declineTrade", (ack) => {
     const code = getRoomForSocket(socket.id);
@@ -477,8 +328,8 @@ io.on("connection", (socket) => {
     const room = rooms.get(code);
     if (!room) return ack && ack({ ok: false, error: "Room missing." });
 
-    // Only allowed after a completed/declined trade or from the showcase
-    if (room.phase !== "success" && room.phase !== "bad" && room.phase !== "showcase") {
+    // Only allowed after a completed/declined trade
+    if (room.phase !== "success" && room.phase !== "bad") {
       return ack && ack({ ok: false, error: "No finished trade to restart." });
     }
 
@@ -490,10 +341,6 @@ io.on("connection", (socket) => {
     room.tradeResult = null;
     room.originalOwners = {};
     room.addRequestedBy = null;
-    room.leaveVotes = { p1: false, p2: false };
-    room.endVotes = { p1: false, p2: false };
-    room.ratings = { p1: null, p2: null };
-    room.showcase = null;
 
     console.log(`[restartTrade] new trade in ${code}`);
     ack && ack({ ok: true });
