@@ -248,11 +248,23 @@ io.on("connection", (socket) => {
         room.pendingAdd = idx === "p1" ? "p2" : "p1";
       }
     } else if (room.phase === "negotiating") {
-      // After an addition, back to the other player
       const other = idx === "p1" ? "p2" : "p1";
-      room.pendingAdd = other;
-      room.accepted = { p1: false, p2: false }; // Adding resets accept flags
-      room.addRequestedBy = null; // clear the pending add request
+
+      // If this addition was requested by the OTHER player (they clicked
+      // "+ ADD"), the uploader KEEPS the turn so they can keep uploading
+      // more squishies. The requester is never forced to upload back to
+      // "match" the quantity — e.g. a player trading a high-value image
+      // can ask the other player for multiple images in return.
+      if (room.addRequestedBy === other) {
+        room.pendingAdd = idx;
+        room.accepted = { p1: false, p2: false }; // Adding resets accept flags
+        // Keep addRequestedBy so the add-request context stays active.
+      } else {
+        // No active add request — alternate back to the other player.
+        room.pendingAdd = other;
+        room.accepted = { p1: false, p2: false }; // Adding resets accept flags
+        room.addRequestedBy = null; // clear the pending add request
+      }
     }
 
     console.log(`[uploadOffer] ${idx} uploaded in ${code}`);
