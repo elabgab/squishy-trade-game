@@ -495,13 +495,22 @@ body {
   background: rgba(74, 59, 82, 0.6);
   backdrop-filter: blur(6px);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   z-index: 100;
   padding: clamp(12px, 3vw, 20px);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   animation: fade-in 0.3s ease;
+}
+
+/* Center each modal while keeping it scrollable when taller than the viewport.
+   auto margins center when there is room and collapse to 0 (top-aligned) on overflow,
+   so the top of the modal is never clipped or unreachable. */
+.overlay > .result-box,
+.overlay > .consent-box,
+.overlay > .proof-modal {
+  margin: auto;
 }
 
 @keyframes fade-in {
