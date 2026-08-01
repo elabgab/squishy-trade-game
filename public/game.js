@@ -70,17 +70,13 @@ function renderSquishies(container, images, emptyMsg) {
     container.appendChild(empty);
     return;
   }
-  images.forEach((src, i) => {
+  images.forEach((src) => {
     const card = document.createElement("div");
     card.className = "squishy-card";
     const img = document.createElement("img");
     img.src = src;
-    img.alt = "Squishy " + (i + 1);
+    img.alt = "Squishy";
     card.appendChild(img);
-    const tag = document.createElement("span");
-    tag.className = "squishy-tag";
-    tag.textContent = "Squishy " + (i + 1);
-    card.appendChild(tag);
     container.appendChild(card);
   });
 }
@@ -266,7 +262,7 @@ function updateTradeMessage(state) {
     const oppAccepted = state.accepted && state.accepted[playerIndex === "p1" ? "p2" : "p1"];
 
     if (pendingWho === "me") {
-      tradeMessage.textContent = "📤 " + opponentNameStr + " wants more! Upload another squishy.";
+      tradeMessage.textContent = "📤 " + opponentNameStr + " wants more! Upload a squishy, Accept, or Decline.";
     } else if (pendingWho === "opponent") {
       tradeMessage.textContent = "⏳ Waiting for " + opponentNameStr + " to upload an added squishy...";
     } else if (myAccepted && !oppAccepted) {
@@ -326,13 +322,16 @@ function updateActions(state) {
     return;
   }
 
-  // Negotiating phase
+  // Negotiating phase — I was asked to add more squishies
   if (pendingWho === "me") {
-    // It's my turn to upload — either upload another squishy (accept the
-    // opponent's Add request) OR decline to cancel the trade entirely.
+    // The opponent requested an Add. I can respond three ways:
+    //   1) UPLOAD another squishy (accept the add request)
+    //   2) ACCEPT the trade as-is
+    //   3) DECLINE to cancel the trade
     uploadBtn.disabled = false;
+    acceptBtn.disabled = false;
     declineBtn.disabled = false;
-    myTurnHint.textContent = "📤 " + opponentNameStr + " wants to add! Upload another squishy or decline the trade.";
+    myTurnHint.textContent = "📤 " + opponentNameStr + " wants to add! Upload a squishy, Accept the trade, or Decline.";
     return;
   }
 

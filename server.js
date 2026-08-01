@@ -250,11 +250,15 @@ io.on("connection", (socket) => {
     if (room.phase !== "negotiating") {
       return ack && ack({ ok: false, error: "Not in negotiation phase." });
     }
-    if (room.pendingAdd !== null) {
-      return ack && ack({ ok: false, error: "Waiting for an image upload. You cannot accept yet." });
-    }
 
     const idx = socket.data.playerIndex;
+
+    // If there is a pending Add request, accepting now means you are happy
+    // with the trade as-is — the pending add request is effectively cancelled.
+    if (room.pendingAdd !== null || room.addRequestedBy !== null) {
+      room.pendingAdd = null;
+      room.addRequestedBy = null;
+    }
     if (room.squishies.p1.length === 0 || room.squishies.p2.length === 0) {
       return ack && ack({ ok: false, error: "Both players need to offer at least one squishy." });
     }
