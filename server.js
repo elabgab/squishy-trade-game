@@ -250,17 +250,18 @@ io.on("connection", (socket) => {
     } else if (room.phase === "negotiating") {
       const other = idx === "p1" ? "p2" : "p1";
 
-      // If this addition was requested by the OTHER player (they clicked
-      // "+ ADD"), the uploader KEEPS the turn so they can keep uploading
-      // more squishies. The requester is never forced to upload back to
-      // "match" the quantity — e.g. a player trading a high-value image
-      // can ask the other player for multiple images in return.
-      if (room.addRequestedBy === other) {
+      // Asymmetric additions apply ONLY when Player 1 requested more images
+      // (e.g. Player 1 is trading a high-value image and asks Player 2 to
+      // upload several squishies in return). In that case the requested
+      // player KEEPS the turn so they can keep uploading without Player 1
+      // having to match quantity.
+      // If Player 2 requested the addition, the turn alternates back as usual.
+      if (room.addRequestedBy === "p1") {
         room.pendingAdd = idx;
         room.accepted = { p1: false, p2: false }; // Adding resets accept flags
         // Keep addRequestedBy so the add-request context stays active.
       } else {
-        // No active add request — alternate back to the other player.
+        // Normal alternating turn: hand back to the other player.
         room.pendingAdd = other;
         room.accepted = { p1: false, p2: false }; // Adding resets accept flags
         room.addRequestedBy = null; // clear the pending add request
