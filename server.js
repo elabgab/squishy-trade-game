@@ -35,7 +35,8 @@ app.get("/healthz", (req, res) => {
 //   endRequestedBy: 'p1' | 'p2' | null,   // who initiated the end-trade request
 //   endVotes: { p1: bool, p2: bool },     // mutual agreement to end the trade
 //   endProofs: { p1: [imageUrl], p2: [imageUrl] }, // screenshot proof of received squishy
-//   ratings: { p1: number|null, p2: number|null }, // 0-10 slider rating
+//   ratings: { p1: number|null, p2: number|null }, // 0-10 slider rating (submitted)
+//   ratingPreviews: { p1: number|null, p2: number|null }, // live slider preview shared with opponent
 //   endResult: { status, ... } | null,    // final end-trade verdict
 // }
 const rooms = new Map();
@@ -79,6 +80,7 @@ function emitRoomState(room) {
     endVotes: room.endVotes,
     endProofs: room.endProofs,
     ratings: room.ratings,
+    ratingPreviews: room.ratingPreviews || { p1: null, p2: null },
     endResult: room.endResult || null,
   };
   io.to(room.code).emit("roomState", payload);
@@ -90,6 +92,7 @@ function initEndTradeFields(room) {
   room.endVotes = { p1: false, p2: false };
   room.endProofs = { p1: [], p2: [] };
   room.ratings = { p1: null, p2: null };
+  room.ratingPreviews = { p1: null, p2: null };
   room.endResult = null;
 }
 
@@ -377,13 +380,11 @@ io.on("connection", (socket) => {
     const room = rooms.get(code);
     if (!room) return ack && ack({ ok: false, error: "Room missing." });
 
-    // Only allowed during negotiation.
-    if (room.phase !== "negotiating") {
-      return ack && ack({ ok: false, error: "You can only end the trade while negotiating." });
-    }
-    // Both players must have offered at least one squishy.
-    if (room.squishies.p1.length === 0 || room.squishies.p2.length === 0) {
-      return ack && ack({ ok: false, error: "Both players need to offer at least one squishy." });
+    // Allowed during the offers or negotiating phase — End Trade is meant for
+    // when both players have nothing left to trade, so it does not require an
+    // active negotiation to be in progress.
+    if (room.phase !== "offers" && room.phase !== "negotiating") {
+      return ack && ack({ ok: false, error: "You can only end the trade while trading." });
     }
 
     const idx = socket.data.playerIndex;
@@ -411,6 +412,9 @@ io.on("connection", (socket) => {
     room.pendingAdd = null;
     room.accepted = { p1: false, p2: false };
     room.addRequestedBy = null;
+    room.ratings = { p1: null, p2: null };
+    room.ratingPreviews = { p1: null, p2: null };
+    room.endProofs = { p1: [], p2: [] };
 
     console.log(`[endTrade] BOTH agreed in ${code} -> endproof.`);
     ack && ack({ ok: true });
@@ -423,18 +427,19 @@ io.on("connection", (socket) => {
     if (!code) return ack && ack({ ok: false, error: "Not in a room." });
     const room = rooms.get(code);
     if (!room) return ack && ack({ ok: false, error: "Room missing." });
-    if (room.phase !== "negotiating") {
-      return ack && ack({ ok: false, error: "Not in negotiation phase." });
+    if (room.phase !== "offers" && room.phase !== "negotiating") {
+      return ack && ack({ ok: false, error: "Not in a trade to cancel." });
     }
 
     const idx = socket.data.playerIndex;
-    // Anyone in the room can dismiss the pending end request — whether they
+    // Anyone in the room can dismiss the pending end request
     // voted to end or simply disagree with the other player's request.
     // Reset the votes so a future end request starts fresh.
     room.endVotes = { p1: false, p2: false };
     room.endRequestedBy = null;
     room.endProofs = { p1: [], p2: [] };
     room.ratings = { p1: null, p2: null };
+    room.ratingPreviews = { p1: null, p2: null };
     room.endResult = null;
 
     console.log(`[endTradeCancel] ${idx} cancelled end request in ${code}`);
@@ -460,6 +465,19 @@ io.on("connection", (socket) => {
     room.endProofs[idx].push(imageUrl);
     console.log(`[uploadEndProof] ${idx} uploaded proof in ${code}`);
     ack && ack({ ok: true });
+    emitRoomState(room);
+  });
+
+  // --- Live rating preview (shared with the opponent as the slider moves) ---
+  socket.on("previewRating", (rating) => {
+    const code = getRoomForSocket(socket.id);
+    if (!code) return;
+    const room = rooms.get(code);
+    if (!room || room.phase !== "endproof") return;
+
+    const idx = socket.data.playerIndex;
+    const val = Math.max(0, Math.min(10, Math.round(Number(rating) || 0)));
+    room.ratingPreviews[idx] = val;
     emitRoomState(room);
   });
 

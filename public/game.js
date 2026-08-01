@@ -72,6 +72,10 @@ const proofUploadBtn = $("proofUploadBtn");
 const ratingSlider = $("ratingSlider");
 const ratingValue = $("ratingValue");
 const ratingSubmitBtn = $("ratingSubmitBtn");
+const oppRatingName = $("oppRatingName");
+const oppRatingDots = $("oppRatingDots");
+const oppRatingValue = $("oppRatingValue");
+const oppRatingStatus = $("oppRatingStatus");
 const proofStatus = $("proofStatus");
 const proofInput = $("proofInput");
 
@@ -382,6 +386,8 @@ proofInput.addEventListener("change", () => {
 // ------------------------------------------------------------
 ratingSlider.addEventListener("input", () => {
   ratingValue.textContent = ratingSlider.value;
+  // Live-share my current slider position with the opponent.
+  socket.emit("previewRating", parseInt(ratingSlider.value, 10));
 });
 
 ratingSubmitBtn.addEventListener("click", () => {
@@ -588,9 +594,11 @@ socket.on("roomState", (state) => {
     hide(endProofModal);
     myTurnHint.textContent = "";
     newTradeBtn.classList.add("hidden");
-    // Reset end-trade local state when a new negotiation begins.
+    // Reset end-trade local state when a new negotiation begins,
+    // but keep myEndVote if there is a pending end request (so the
+    // requester can still cancel it and the overlay stays consistent).
     if (state.phase === "offers" || state.phase === "negotiating") {
-      myEndVote = false;
+      if (!state.endRequestedBy) myEndVote = false;
       iUploadedProof = false;
       iSubmittedRating = false;
     }
@@ -641,8 +649,10 @@ socket.on("roomState", (state) => {
 
   // ------------------------------------------------
   // End-trade: consent overlay
+  // (Works during "offers" too — End Trade can be used when both
+  // players have nothing left to trade, even before negotiation.)
   // ------------------------------------------------
-  if (state.phase === "negotiating") {
+  if (state.phase === "negotiating" || state.phase === "offers") {
     // The other player requested to end the trade and I haven't voted yet.
     if (state.endRequestedBy && state.endRequestedBy !== playerIndex && !myEndVote) {
       endConsentText.textContent = (opponentNameStr || "OPPONENT") + " wants to end the trade! Do you agree?";
@@ -718,6 +728,34 @@ socket.on("roomState", (state) => {
       ratingSlider.disabled = false;
       ratingSubmitBtn.disabled = false;
       ratingValue.textContent = ratingSlider.value;
+    }
+
+    // ---- Live view of the opposing player's rating ----
+    oppRatingName.textContent = (opponentNameStr || "OPPONENT") + " is rating…";
+    const oppPreview = state.ratingPreviews ? state.ratingPreviews[oppIdx] : null;
+    const oppSubmitted = state.ratings ? state.ratings[oppIdx] : null;
+    const oppRating = oppSubmitted !== null && oppSubmitted !== undefined ? oppSubmitted : oppPreview;
+
+    if (oppRating !== null && oppRating !== undefined) {
+      oppRatingValue.textContent = oppRating + " / 10";
+      oppRatingDots.innerHTML = "";
+      for (let i = 0; i < 10; i++) {
+        const dot = document.createElement("span");
+        dot.className = "dot" + (i < oppRating ? " filled" : "");
+        oppRatingDots.appendChild(dot);
+      }
+      oppRatingStatus.textContent = oppSubmitted !== null && oppSubmitted !== undefined
+        ? "Rating submitted ✔"
+        : "Rating the trade now…";
+    } else {
+      oppRatingValue.textContent = "—";
+      oppRatingDots.innerHTML = "";
+      for (let i = 0; i < 10; i++) {
+        const dot = document.createElement("span");
+        dot.className = "dot";
+        oppRatingDots.appendChild(dot);
+      }
+      oppRatingStatus.textContent = "waiting for rating…";
     }
 
     return; // Don't process any further UI updates (phase is handled by modal)

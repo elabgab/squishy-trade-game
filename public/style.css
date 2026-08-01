@@ -864,6 +864,59 @@ body {
   min-height: 18px;
 }
 
+/* Live view of the opposing player's rating */
+.opp-rating {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: rgba(243, 230, 255, 0.55);
+  border-radius: 14px;
+  border: 2px dashed #d6c6ff;
+}
+
+.opp-rating-name {
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--purple-dark);
+  letter-spacing: 0.5px;
+}
+
+.opp-rating-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.opp-rating-dots .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e3d6f5;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.opp-rating-dots .dot.filled {
+  background: linear-gradient(135deg, var(--purple), var(--pink-dark));
+  transform: scale(1.1);
+}
+
+.opp-rating-value {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--pink-dark);
+  min-width: 46px;
+  text-align: center;
+}
+
+.opp-rating-status {
+  font-size: 12px;
+  font-weight: 700;
+  color: #9a8ba5;
+}
+
 /* =============================================
    Responsive tweaks for proof modal
    ============================================= */
