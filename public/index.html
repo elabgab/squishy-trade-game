@@ -97,6 +97,10 @@
       <button id="declineBtn" class="btn btn-decline" disabled>✖ DECLINE</button>
     </div>
     <p class="turn-hint" id="myTurnHint">Waiting...</p>
+    <div class="player-controls">
+      <button id="leaveBtn" class="btn btn-outline danger">🚪 LEAVE GAME</button>
+      <button id="endTradeBtn" class="btn btn-outline">🏁 END TRADE</button>
+    </div>
   </section>
 </div>
 
@@ -110,9 +114,63 @@
       <h2 id="resultTitle">Trade Successful!</h2>
       <p id="resultText">Ownership exchanged!</p>
 
-      <button id="newTradeBtn" class="btn btn-primary result-btn">NEW TRADE</button>
+      <div class="result-actions">
+        <button id="newTradeBtn" class="btn btn-primary result-btn">NEW TRADE</button>
+        <button id="resultEndBtn" class="btn btn-secondary result-btn">🏁 END TRADE</button>
+      </div>
     </div>
     <div class="result-squishies" id="resultSquishies"></div>
+  </div>
+</div>
+
+<!-- ============================================= -->
+<!-- CONFIRM OVERLAY (leave game / end trade mutual agreement) -->
+<!-- ============================================= -->
+<div id="confirmOverlay" class="overlay hidden">
+  <div class="confirm-box">
+    <div class="confirm-emoji" id="confirmEmoji">👋</div>
+    <h2 id="confirmTitle">Leave Game?</h2>
+    <p id="confirmText">Both players must agree to leave the game.</p>
+    <div class="confirm-votes" id="confirmVotes"></div>
+    <div class="confirm-actions">
+      <button id="confirmYesBtn" class="btn btn-primary">AGREE</button>
+      <button id="confirmNoBtn" class="btn btn-secondary">CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================= -->
+<!-- SHOWCASE OVERLAY (end trade showcase + rating) -->
+<!-- ============================================= -->
+<div id="showcaseOverlay" class="overlay hidden">
+  <div class="showcase-box">
+    <div class="showcase-emoji">🏆</div>
+    <h2>TRADE SHOWCASE</h2>
+    <p class="showcase-sub" id="showcaseSub">Upload a screenshot of the squishies you got from the trade!</p>
+
+    <div class="showcase-upload">
+      <button id="screenshotBtn" class="btn btn-upload">📸 UPLOAD SCREENSHOT</button>
+      <div class="showcase-grid" id="myScreenshots"></div>
+    </div>
+
+    <div class="showcase-traded">
+      <h3>Squishies I received:</h3>
+      <div class="result-grid" id="showcaseReceived"></div>
+    </div>
+
+    <div class="showcase-ratings">
+      <h3>How was the trade?</h3>
+      <div class="rating-rows" id="ratingRows"></div>
+      <div class="slicer-wrap">
+        <span class="slicer-end bad">BAD</span>
+        <input type="range" id="showcaseRating" min="0" max="1" value="1" step="1">
+        <span class="slicer-end good">GOOD</span>
+      </div>
+      <p class="rating-label-value" id="showcaseRatingLabel">GOOD TRADE 😊</p>
+      <button id="submitRatingBtn" class="btn btn-accept">SUBMIT RATING</button>
+    </div>
+
+    <button id="showcaseDoneBtn" class="btn btn-primary result-btn">DONE</button>
   </div>
 </div>
 
@@ -120,6 +178,7 @@
 <!-- FILE UPLOAD INPUT -->
 <!-- ============================================= -->
 <input type="file" id="fileInput" accept="image/*" hidden>
+<input type="file" id="screenshotInput" accept="image/*" hidden>
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="game.js"></script>
