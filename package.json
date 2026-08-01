@@ -1,0 +1,21 @@
+{
+  "name": "squishy-trade-game",
+  "version": "1.0.0",
+  "description": "A real-time two-player Squishy Trade Game with room codes, image offers, negotiation (Accept/Add/Decline), and ownership exchange.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": ["squishy", "trade", "multiplayer", "socket.io", "game"],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.8.1"
+  }
+}
+

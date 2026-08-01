@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Squishy Trade Game</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ============================================= -->
+<!-- LOBBY SCREEN -->
+<!-- ============================================= -->
+<div id="lobby" class="screen">
+  <div class="lobby-box">
+    <div class="squishy-logo">🧸</div>
+    <h1 class="title">SQUISHY<br>TRADE</h1>
+    <p class="tagline">Trade your squishies with a friend!</p>
+
+    <div class="name-row">
+      <input id="playerName" type="text" placeholder="Your name" maxlength="20" autocomplete="off">
+    </div>
+
+    <button id="createRoomBtn" class="btn btn-primary big">CREATE ROOM</button>
+
+    <div class="divider"><span>or</span></div>
+
+    <div class="join-row">
+      <input id="roomInput" type="text" placeholder="Room code" maxlength="6" autocomplete="off">
+      <button id="joinRoomBtn" class="btn btn-secondary">JOIN</button>
+    </div>
+
+    <p id="lobbyMsg" class="lobby-msg"></p>
+    <p class="how-to">📖 How to play: Join the same room with a friend, then trade squishy images until you both say <strong>Accept</strong>!</p>
+  </div>
+</div>
+
+<!-- ============================================= -->
+<!-- WAITING SCREEN -->
+<!-- ============================================= -->
+<div id="waiting" class="screen hidden">
+  <div class="lobby-box">
+    <h1 class="title small">WAITING FOR<br>PLAYER 2</h1>
+    <p class="room-code-label">ROOM CODE</p>
+    <div id="roomCodeDisplay" class="room-code">------</div>
+    <p class="waiting-text">Share this code with your friend to trade!</p>
+    <div class="loading-bounce"><span></span><span></span><span></span></div>
+    <button id="leaveRoomBtn" class="btn btn-danger">LEAVE ROOM</button>
+  </div>
+</div>
+
+<!-- ============================================= -->
+<!-- GAME SCREEN -->
+<!-- ============================================= -->
+<div id="game" class="screen hidden">
+  <header class="game-header">
+    <div class="header-left">
+      <span class="game-logo">🧸</span>
+      <span class="game-title">Squishy Trade</span>
+    </div>
+    <div class="room-chip" id="gameRoomCode">ROOM: ------</div>
+  </header>
+
+  <!-- OPPONENT AREA -->
+  <section class="player-area opponent-area">
+    <div class="player-label">
+      <span class="p-avatar" id="opponentAvatar">❔</span>
+      <h2 id="opponentName">OPPONENT</h2>
+      <span class="status-pill" id="opponentStatus">waiting</span>
+    </div>
+    <div class="squishy-grid" id="opponentSquishies">
+      <div class="empty-slot">Waiting for squishy...</div>
+    </div>
+  </section>
+
+  <!-- TRADE CENTER -->
+  <section class="trade-center">
+    <div class="trade-arrow">⇅</div>
+    <h2 class="trade-message" id="tradeMessage">Waiting for both players...</h2>
+    <div class="trade-result" id="tradeResult" hidden></div>
+  </section>
+
+  <!-- MY AREA -->
+  <section class="player-area my-area">
+    <div class="player-label">
+      <span class="p-avatar" id="myAvatar">🙂</span>
+      <h2 id="myName">YOU</h2>
+      <span class="status-pill" id="myStatus">idle</span>
+    </div>
+    <div class="squishy-grid" id="mySquishies">
+      <div class="empty-slot">Upload your squishy...</div>
+    </div>
+    <div class="action-buttons" id="actionButtons">
+      <button id="uploadBtn" class="btn btn-upload">📤 UPLOAD SQUISHY</button>
+      <button id="addBtn" class="btn btn-add" disabled>➕ ADD</button>
+      <button id="acceptBtn" class="btn btn-accept" disabled>✔ ACCEPT</button>
+      <button id="declineBtn" class="btn btn-decline" disabled>✖ DECLINE</button>
+    </div>
+    <p class="turn-hint" id="myTurnHint">Waiting...</p>
+  </section>
+</div>
+
+<!-- ============================================= -->
+<!-- RESULT OVERLAY -->
+<!-- ============================================= -->
+<div id="resultOverlay" class="overlay hidden">
+  <div class="result-box">
+    <div class="result-emoji" id="resultEmoji">🎉</div>
+    <h2 id="resultTitle">Trade Successful!</h2>
+    <p id="resultText">Ownership exchanged!</p>
+    <div class="result-squishies" id="resultSquishies"></div>
+    <button id="newTradeBtn" class="btn btn-primary">NEW TRADE</button>
+  </div>
+</div>
+
+<!-- ============================================= -->
+<!-- FILE UPLOAD INPUT -->
+<!-- ============================================= -->
+<input type="file" id="fileInput" accept="image/*" hidden>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
+
