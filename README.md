@@ -10,6 +10,7 @@ A real-time two-player trading game where players join a shared trading room wit
 - 🔁 **Alternating additions** — Players take turns adding one squishy at a time
 - 🎉 **Trade Successful** — Both players Accept → ownership of all squishies is exchanged
 - 💔 **Trade Unsuccessful (Bad Trade)** — Any player Declines → all squishies are restored to their original owners and the interface resets for a new trade
+- 🚪 **Leave Game** — Clicking **LEAVE GAME** closes the room for **both** players; the other player is automatically disconnected from the trade and returned to the lobby
 
 ## Tech Stack
 

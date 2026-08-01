@@ -347,6 +347,29 @@ io.on("connection", (socket) => {
     emitRoomState(room);
   });
 
+  // --- Leave room (close the room for everyone) ----------------------
+  socket.on("leaveRoom", (ack) => {
+    const code = roomBySocket.get(socket.id);
+    if (!code) return ack && ack({ ok: false, error: "Not in a room." });
+    const room = rooms.get(code);
+    if (!room) return ack && ack({ ok: false, error: "Room missing." });
+
+    // Tell everyone in the room (including the leaver) that it is closing,
+    // so every player returns to the lobby automatically.
+    io.to(code).emit("roomClosed");
+
+    // Remove all socket bindings and delete the room.
+    for (const p of room.players) {
+      roomBySocket.delete(p.id);
+      const s = io.sockets.sockets.get(p.id);
+      if (s) s.leave(code);
+    }
+    rooms.delete(code);
+
+    console.log(`[leaveRoom] ${socket.id} closed room ${code} for everyone.`);
+    ack && ack({ ok: true });
+  });
+
   // --- Disconnect ----------------------------------------------------
   socket.on("disconnect", () => {
     const code = roomBySocket.get(socket.id);

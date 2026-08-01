@@ -254,9 +254,15 @@ newTradeBtn.addEventListener("click", () => {
 // Leave room button (bottom of my area)
 // ------------------------------------------------------------
 leaveBtn.addEventListener("click", () => {
-  // Reloading disconnects the socket, removing this player from the
-  // room and letting the server reset/tidy the room for the opponent.
-  window.location.reload();
+  // Tell the server to close this room for EVERYONE. The server emits
+  // "roomClosed" to both players so Player 2 is disconnected from the
+  // trade and returns to the lobby automatically, too.
+  leaveBtn.disabled = true;
+  myTurnHint.textContent = "🚪 Closing room for everyone...";
+  socket.emit("leaveRoom", (res) => {
+    // After the room is closed we go back to the lobby.
+    window.location.reload();
+  });
 });
 
 // ------------------------------------------------------------
@@ -466,6 +472,11 @@ socket.on("roomState", (state) => {
   if (state.phase === "success" || state.phase === "bad") {
     showResult(state);
   }
+});
+
+// Room closed by the other player (or by leaving the game) — return home.
+socket.on("roomClosed", () => {
+  window.location.reload();
 });
 
 // Opponent left
