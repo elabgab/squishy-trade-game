@@ -5,11 +5,14 @@ A real-time two-player trading game where players join a shared trading room wit
 ## Features
 
 - 🔑 **Room codes** — Create a room and share the 6-character code with a friend
-- 📤 **Squishy offers** — Player 1 uploads the first squishy, Player 2 uploads a counter-offer
+- 📤 **Squishy offers** — A random player is selected to upload the first squishy; the other player uploads a counter-offer
 - 🤝 **Negotiation** — Both players can **Accept**, **Add** (request more squishies), or **Decline**
-- 🔁 **Alternating additions** — Players take turns adding one squishy at a time
+- ➕ **Request additions** — Each press of **+ ADD** requests **exactly one** more squishy from the other player. The receiving player uploads only one new image per request, then control returns so the requester can review the updated offer and press **+ ADD** again (no limit). Every uploaded image stays visible in the trade window as the trade grows more valuable.
 - 🎉 **Trade Successful** — Both players Accept → ownership of all squishies is exchanged
 - 💔 **Trade Unsuccessful (Bad Trade)** — Any player Declines → all squishies are restored to their original owners and the interface resets for a new trade
+- 🔚 **End Trade** — Clicking **END TRADE** asks both players to mutually agree to end the trade
+- 📸 **Proof & Rating** — After both agree, a landscape modal appears where each player uploads a screenshot of the traded squishies (shown to the opposing player) and rates the trade with a 0–10 slider (GOOD vs BAD)
+- 🏁 **Ratings do NOT execute the trade** — Once both ratings are submitted, the room closes and both players are returned to the lobby; ownership is never swapped via the rating flow
 - 🚪 **Leave Game** — Clicking **LEAVE GAME** closes the room for **both** players; the other player is automatically disconnected from the trade and returned to the lobby
 
 ## Tech Stack
@@ -89,7 +92,7 @@ squishy-trade-game/
 3. **Offers** → Player 1 uploads a squishy, Player 2 uploads a counter-offer
 4. **Negotiating** → both players use Accept / Add / Decline
    - **Accept** → lock in your agreement (both must accept)
-   - **Add** → ask the other player to upload another squishy
+   - **Add** → ask the other player to upload **exactly one** more squishy; after they upload, control returns so you can review the updated offer and **+ ADD** again (no limit), or Accept / Decline
    - **Decline** → end the trade as a Bad Trade
 5. **Result** → Trade Successful (ownership swapped) or Trade Unsuccessful (items restored) + start a new trade
 
