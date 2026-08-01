@@ -52,6 +52,28 @@ const newTradeBtn = $("newTradeBtn");
 
 // Player controls
 const leaveBtn = $("leaveBtn");
+const endTradeBtn = $("endTradeBtn");
+
+// End trade consent overlay
+const endConsentOverlay = $("endConsentOverlay");
+const endConsentText = $("endConsentText");
+const endConsentAgree = $("endConsentAgree");
+const endConsentCancel = $("endConsentCancel");
+const endConsentHint = $("endConsentHint");
+
+// End trade proof modal
+const endProofModal = $("endProofModal");
+const proofMyLabel = $("proofMyLabel");
+const proofOppLabel = $("proofOppLabel");
+const proofMyUpload = $("proofMyUpload");
+const proofMyPreview = $("proofMyPreview");
+const proofOppPreview = $("proofOppPreview");
+const proofUploadBtn = $("proofUploadBtn");
+const ratingSlider = $("ratingSlider");
+const ratingValue = $("ratingValue");
+const ratingSubmitBtn = $("ratingSubmitBtn");
+const proofStatus = $("proofStatus");
+const proofInput = $("proofInput");
 
 // ------------------------------------------------------------
 // Local state
@@ -60,6 +82,9 @@ let playerIndex = null;   // 'p1' | 'p2'
 let roomCode = null;
 let opponentNameStr = "OPPONENT";
 let myNameStr = "YOU";
+let myEndVote = false;    // whether I voted to end the trade
+let iSubmittedRating = false;
+let iUploadedProof = false;
 
 // ------------------------------------------------------------
 // Helpers
@@ -251,6 +276,132 @@ newTradeBtn.addEventListener("click", () => {
 });
 
 // ------------------------------------------------------------
+// End trade button (bottom of my area)
+// ------------------------------------------------------------
+endTradeBtn.addEventListener("click", () => {
+  if (myEndVote) {
+    // Already voted — allow cancelling the request.
+    myEndVote = false;
+    socket.emit("endTradeCancel", (res) => {
+      if (!res || !res.ok) {
+        myTurnHint.textContent = "❌ " + ((res && res.error) || "Cancel failed.");
+      }
+    });
+    return;
+  }
+
+  socket.emit("endTrade", (res) => {
+    if (!res || !res.ok) {
+      myTurnHint.textContent = "❌ " + ((res && res.error) || "End trade failed.");
+      return;
+    }
+    myEndVote = true;
+    myTurnHint.textContent = "🔚 Waiting for the other player to agree to end the trade...";
+  });
+});
+
+// Consent overlay: AGREE (the other player agrees to end)
+endConsentAgree.addEventListener("click", () => {
+  endConsentAgree.disabled = true;
+  socket.emit("endTrade", (res) => {
+    if (!res || !res.ok) {
+      myTurnHint.textContent = "❌ " + ((res && res.error) || "End trade failed.");
+      endConsentAgree.disabled = false;
+      hide(endConsentOverlay);
+      return;
+    }
+    myEndVote = true;
+    hide(endConsentOverlay);
+  });
+});
+
+// Consent overlay: CANCEL
+endConsentCancel.addEventListener("click", () => {
+  myEndVote = false;
+  socket.emit("endTradeCancel", (res) => {
+    if (!res || !res.ok) {
+      myTurnHint.textContent = "❌ " + ((res && res.error) || "Cancel failed.");
+    }
+  });
+  hide(endConsentOverlay);
+});
+
+// ------------------------------------------------------------
+// Proof upload (screenshot) handler
+// ------------------------------------------------------------
+proofUploadBtn.addEventListener("click", () => proofInput.click());
+
+proofInput.addEventListener("change", () => {
+  const file = proofInput.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 800;
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      const width = Math.max(1, Math.round(img.width * scale));
+      const height = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+      const compressedUrl = canvas.toDataURL("image/jpeg", 0.85);
+      const taggedUrl = cleanUrl(compressedUrl) + "#t=" + Date.now();
+
+      // Show my screenshot immediately.
+      proofMyPreview.innerHTML = "";
+      const previewImg = document.createElement("img");
+      previewImg.src = cleanUrl(taggedUrl);
+      previewImg.alt = "My screenshot";
+      proofMyPreview.appendChild(previewImg);
+
+      socket.emit("uploadEndProof", taggedUrl, (res) => {
+        if (!res || !res.ok) {
+          proofStatus.textContent = "❌ " + ((res && res.error) || "Screenshot upload failed.");
+          proofMyPreview.innerHTML = '<span class="proof-placeholder">No screenshot yet</span>';
+          return;
+        }
+        iUploadedProof = true;
+        proofStatus.textContent = "✅ Screenshot uploaded. Waiting for " + opponentNameStr + "...";
+        proofInput.value = "";
+      });
+    };
+    img.onerror = () => {
+      proofStatus.textContent = "❌ Could not read that image.";
+      proofInput.value = "";
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+// ------------------------------------------------------------
+// Rating slider + submit
+// ------------------------------------------------------------
+ratingSlider.addEventListener("input", () => {
+  ratingValue.textContent = ratingSlider.value;
+});
+
+ratingSubmitBtn.addEventListener("click", () => {
+  if (!iUploadedProof) {
+    proofStatus.textContent = "❌ Upload your screenshot first!";
+    return;
+  }
+  ratingSubmitBtn.disabled = true;
+  socket.emit("submitRating", parseInt(ratingSlider.value, 10), (res) => {
+    if (!res || !res.ok) {
+      ratingSubmitBtn.disabled = false;
+      proofStatus.textContent = "❌ " + ((res && res.error) || "Rating submit failed.");
+    } else {
+      iSubmittedRating = true;
+      proofStatus.textContent = "✅ Rating submitted! Waiting for " + opponentNameStr + "...";
+    }
+  });
+});
+
+// ------------------------------------------------------------
 // Leave room button (bottom of my area)
 // ------------------------------------------------------------
 leaveBtn.addEventListener("click", () => {
@@ -373,14 +524,21 @@ function showResult(state) {
   const result = state.tradeResult;
   if (!result) return;
 
-  if (state.phase === "success") {
+  const isEnded = state.phase === "endrated";
+  const isSuccess = result.status === "success";
+
+  if (isSuccess) {
     resultEmoji.textContent = "🎉";
     resultTitle.textContent = "TRADE SUCCESSFUL!";
-    resultText.textContent = "Ownership exchanged! Your new squishies are shown below.";
+    resultText.textContent = isEnded
+      ? "Trade ended with a good rating — ownership exchanged!"
+      : "Ownership exchanged! Your new squishies are shown below.";
   } else {
     resultEmoji.textContent = "💔";
     resultTitle.textContent = "TRADE UNSUCCESSFUL";
-    resultText.textContent = "Bad Trade — all squishies returned to their original owners.";
+    resultText.textContent = isEnded
+      ? "Trade ended with a bad rating."
+      : "Bad Trade — all squishies returned to their original owners.";
   }
 
   newTradeBtn.classList.remove("hidden");
@@ -390,7 +548,7 @@ function showResult(state) {
 
   const header = document.createElement("div");
   header.className = "result-sub";
-  header.textContent = state.phase === "success" ? "✨ Squishies you received:" : "🔙 Squishies returned to you:";
+  header.textContent = isSuccess ? "✨ Squishies you received:" : "🔙 Squishies returned to you:";
   resultSquishies.appendChild(header);
 
   if (mySquishiesAfter.length > 0) {
@@ -424,10 +582,18 @@ socket.on("roomState", (state) => {
   gameRoomCode.textContent = "ROOM: " + (state.code || "");
 
   // Fresh trade started -> close overlays.
-  if (state.phase !== "success" && state.phase !== "bad") {
+  if (state.phase !== "success" && state.phase !== "bad" && state.phase !== "endproof" && state.phase !== "endrated") {
     hide(resultOverlay);
+    hide(endConsentOverlay);
+    hide(endProofModal);
     myTurnHint.textContent = "";
     newTradeBtn.classList.add("hidden");
+    // Reset end-trade local state when a new negotiation begins.
+    if (state.phase === "offers" || state.phase === "negotiating") {
+      myEndVote = false;
+      iUploadedProof = false;
+      iSubmittedRating = false;
+    }
   }
 
   // Waiting phase -> show waiting screen.
@@ -471,6 +637,100 @@ socket.on("roomState", (state) => {
   // Handle result.
   if (state.phase === "success" || state.phase === "bad") {
     showResult(state);
+  }
+
+  // ------------------------------------------------
+  // End-trade: consent overlay
+  // ------------------------------------------------
+  if (state.phase === "negotiating") {
+    // The other player requested to end the trade and I haven't voted yet.
+    if (state.endRequestedBy && state.endRequestedBy !== playerIndex && !myEndVote) {
+      endConsentText.textContent = (opponentNameStr || "OPPONENT") + " wants to end the trade! Do you agree?";
+      endConsentHint.textContent = "You can also cancel this request.";
+      endConsentAgree.disabled = false;
+      endConsentCancel.classList.remove("hidden");
+      show(endConsentOverlay);
+    } else if (myEndVote) {
+      // I already voted — show hint but hide the overlay.
+      hide(endConsentOverlay);
+      myTurnHint.textContent = "🔚 Waiting for " + opponentNameStr + " to agree to end the trade...";
+    } else {
+      hide(endConsentOverlay);
+    }
+    // Hide the proof modal if it was open.
+    hide(endProofModal);
+  }
+
+  // ------------------------------------------------
+  // End-trade: proof upload phase
+  // ------------------------------------------------
+  if (state.phase === "endproof") {
+    hide(endConsentOverlay);
+    hide(resultOverlay);
+    myTurnHint.textContent = "";
+
+    // Show the proof modal.
+    show(endProofModal);
+
+    proofMyLabel.textContent = (myNameStr || "YOU").toUpperCase() + "'s Screenshot";
+    proofOppLabel.textContent = (opponentNameStr || "OPPONENT").toUpperCase() + "'s Screenshot";
+
+    // Show opponent's proof if already uploaded.
+    if (state.endProofs && state.endProofs[oppIdx] && state.endProofs[oppIdx].length > 0) {
+      proofOppPreview.innerHTML = "";
+      state.endProofs[oppIdx].forEach((src) => {
+        const img = document.createElement("img");
+        img.src = cleanUrl(src);
+        img.alt = "Opponent proof";
+        proofOppPreview.appendChild(img);
+      });
+    } else {
+      proofOppPreview.innerHTML = '<span class="proof-placeholder">No screenshot yet</span>';
+    }
+
+    // If I already uploaded, show my proof and allow rating.
+    if (state.endProofs[playerIndex] && state.endProofs[playerIndex].length > 0) {
+      proofMyPreview.innerHTML = "";
+      state.endProofs[playerIndex].forEach((src) => {
+        const img = document.createElement("img");
+        img.src = cleanUrl(src);
+        img.alt = "My proof";
+        proofMyPreview.appendChild(img);
+      });
+      iUploadedProof = true;
+      proofUploadBtn.disabled = true;
+      proofStatus.textContent = "✅ Screenshot uploaded! Submit your rating below.";
+    } else {
+      proofUploadBtn.disabled = false;
+      proofStatus.textContent = "📸 Upload a screenshot of the received squishy as proof.";
+    }
+
+    // If I already submitted rating, disable the slider.
+    const myRating = state.ratings ? state.ratings[playerIndex] : null;
+    if (myRating !== null && myRating !== undefined) {
+      iSubmittedRating = true;
+      ratingSlider.disabled = true;
+      ratingSubmitBtn.disabled = true;
+      ratingValue.textContent = myRating;
+      ratingSlider.value = myRating;
+      proofStatus.textContent = "✅ Rating submitted! Waiting for " + opponentNameStr + "...";
+    } else {
+      ratingSlider.disabled = false;
+      ratingSubmitBtn.disabled = false;
+      ratingValue.textContent = ratingSlider.value;
+    }
+
+    return; // Don't process any further UI updates (phase is handled by modal)
+  }
+
+  // ------------------------------------------------
+  // End-trade: final rated phase -> show result
+  // ------------------------------------------------
+  if (state.phase === "endrated") {
+    hide(endConsentOverlay);
+    hide(endProofModal);
+    showResult(state);
+    return;
   }
 });
 

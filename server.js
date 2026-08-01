@@ -28,10 +28,15 @@ app.get("/healthz", (req, res) => {
 //   code: string,
 //   players: [{ id, name }],
 //   squishies: { p1: [imageUrl], p2: [imageUrl] },
-//   phase: 'waiting' | 'offers' | 'negotiating' | 'success' | 'bad',
+//   phase: 'waiting' | 'offers' | 'negotiating' | 'endproof' | 'endrated' | 'success' | 'bad',
 //   pendingAdd: 'p1' | 'p2' | null,      // who must upload the next squishy
 //   accepted: { p1: bool, p2: bool },
 //   originalOwners: { [imageUrl]: 'p1' | 'p2' }, // for restore on decline
+//   endRequestedBy: 'p1' | 'p2' | null,   // who initiated the end-trade request
+//   endVotes: { p1: bool, p2: bool },     // mutual agreement to end the trade
+//   endProofs: { p1: [imageUrl], p2: [imageUrl] }, // screenshot proof of received squishy
+//   ratings: { p1: number|null, p2: number|null }, // 0-10 slider rating
+//   endResult: { status, ... } | null,    // final end-trade verdict
 // }
 const rooms = new Map();
 const roomBySocket = new Map();
@@ -69,8 +74,23 @@ function emitRoomState(room) {
     accepted: room.accepted,
     addRequestedBy: room.addRequestedBy || null,
     tradeResult: room.tradeResult || null,
+    // End-trade data
+    endRequestedBy: room.endRequestedBy || null,
+    endVotes: room.endVotes,
+    endProofs: room.endProofs,
+    ratings: room.ratings,
+    endResult: room.endResult || null,
   };
   io.to(room.code).emit("roomState", payload);
+}
+
+// Initialize the end-trade fields on a fresh room / restart.
+function initEndTradeFields(room) {
+  room.endRequestedBy = null;
+  room.endVotes = { p1: false, p2: false };
+  room.endProofs = { p1: [], p2: [] };
+  room.ratings = { p1: null, p2: null };
+  room.endResult = null;
 }
 
 function resetTradeState(room) {
@@ -110,6 +130,7 @@ io.on("connection", (socket) => {
       tradeResult: null,
       originalOwners: {},
     };
+    initEndTradeFields(room);
 
     rooms.set(code, room);
     roomBySocket.set(socket.id, code);
@@ -272,6 +293,7 @@ io.on("connection", (socket) => {
     if (room.accepted.p1 && room.accepted.p2) {
       room.phase = "success";
       room.addRequestedBy = null;
+      initEndTradeFields(room);
       room.tradeResult = {
         status: "success",
         message: "Trade Successful! Ownership exchanged.",
@@ -328,8 +350,8 @@ io.on("connection", (socket) => {
     const room = rooms.get(code);
     if (!room) return ack && ack({ ok: false, error: "Room missing." });
 
-    // Only allowed after a completed/declined trade
-    if (room.phase !== "success" && room.phase !== "bad") {
+    // Only allowed after a completed/declined/rated trade
+    if (room.phase !== "success" && room.phase !== "bad" && room.phase !== "endrated") {
       return ack && ack({ ok: false, error: "No finished trade to restart." });
     }
 
@@ -341,8 +363,150 @@ io.on("connection", (socket) => {
     room.tradeResult = null;
     room.originalOwners = {};
     room.addRequestedBy = null;
+    initEndTradeFields(room);
 
     console.log(`[restartTrade] new trade in ${code}`);
+    ack && ack({ ok: true });
+    emitRoomState(room);
+  });
+
+  // --- End trade (request to end; mutual agreement required) ---------
+  socket.on("endTrade", (ack) => {
+    const code = getRoomForSocket(socket.id);
+    if (!code) return ack && ack({ ok: false, error: "Not in a room." });
+    const room = rooms.get(code);
+    if (!room) return ack && ack({ ok: false, error: "Room missing." });
+
+    // Only allowed during negotiation.
+    if (room.phase !== "negotiating") {
+      return ack && ack({ ok: false, error: "You can only end the trade while negotiating." });
+    }
+    // Both players must have offered at least one squishy.
+    if (room.squishies.p1.length === 0 || room.squishies.p2.length === 0) {
+      return ack && ack({ ok: false, error: "Both players need to offer at least one squishy." });
+    }
+
+    const idx = socket.data.playerIndex;
+    const other = idx === "p1" ? "p2" : "p1";
+
+    // First vote: record who requested the end.
+    if (!room.endVotes.p1 && !room.endVotes.p2) {
+      room.endRequestedBy = idx;
+      room.endVotes[idx] = true;
+      console.log(`[endTrade] ${idx} requested to end trade in ${code}`);
+      ack && ack({ ok: true });
+      emitRoomState(room);
+      return;
+    }
+
+    // Already voted by me -> ignore duplicate.
+    if (room.endVotes[idx]) {
+      return ack && ack({ ok: false, error: "You already agreed to end the trade." });
+    }
+
+    // Second vote: both agree -> move to endproof phase.
+    room.endVotes[idx] = true;
+    room.endRequestedBy = room.endRequestedBy || other;
+    room.phase = "endproof";
+    room.pendingAdd = null;
+    room.accepted = { p1: false, p2: false };
+    room.addRequestedBy = null;
+
+    console.log(`[endTrade] BOTH agreed in ${code} -> endproof.`);
+    ack && ack({ ok: true });
+    emitRoomState(room);
+  });
+
+  // --- Cancel the end-trade request (first voter backs out) ----------
+  socket.on("endTradeCancel", (ack) => {
+    const code = getRoomForSocket(socket.id);
+    if (!code) return ack && ack({ ok: false, error: "Not in a room." });
+    const room = rooms.get(code);
+    if (!room) return ack && ack({ ok: false, error: "Room missing." });
+    if (room.phase !== "negotiating") {
+      return ack && ack({ ok: false, error: "Not in negotiation phase." });
+    }
+
+    const idx = socket.data.playerIndex;
+    // Anyone in the room can dismiss the pending end request — whether they
+    // voted to end or simply disagree with the other player's request.
+    // Reset the votes so a future end request starts fresh.
+    room.endVotes = { p1: false, p2: false };
+    room.endRequestedBy = null;
+    room.endProofs = { p1: [], p2: [] };
+    room.ratings = { p1: null, p2: null };
+    room.endResult = null;
+
+    console.log(`[endTradeCancel] ${idx} cancelled end request in ${code}`);
+    ack && ack({ ok: true });
+    emitRoomState(room);
+  });
+
+  // --- Upload end-proof screenshot ------------------------------------
+  socket.on("uploadEndProof", (imageUrl, ack) => {
+    const code = getRoomForSocket(socket.id);
+    if (!code) return ack && ack({ ok: false, error: "Not in a room." });
+    const room = rooms.get(code);
+    if (!room) return ack && ack({ ok: false, error: "Room missing." });
+    if (room.phase !== "endproof") {
+      return ack && ack({ ok: false, error: "Not in end-proof phase." });
+    }
+
+    const idx = socket.data.playerIndex;
+    if (!imageUrl || typeof imageUrl !== "string") {
+      return ack && ack({ ok: false, error: "Invalid screenshot." });
+    }
+
+    room.endProofs[idx].push(imageUrl);
+    console.log(`[uploadEndProof] ${idx} uploaded proof in ${code}`);
+    ack && ack({ ok: true });
+    emitRoomState(room);
+  });
+
+  // --- Submit rating (finalizes the end-trade result) -----------------
+  socket.on("submitRating", (rating, ack) => {
+    const code = getRoomForSocket(socket.id);
+    if (!code) return ack && ack({ ok: false, error: "Not in a room." });
+    const room = rooms.get(code);
+    if (!room) return ack && ack({ ok: false, error: "Room missing." });
+    if (room.phase !== "endproof") {
+      return ack && ack({ ok: false, error: "Not in end-proof phase." });
+    }
+
+    const idx = socket.data.playerIndex;
+    const val = Math.max(0, Math.min(10, Math.round(Number(rating) || 0)));
+    room.ratings[idx] = val;
+
+    // Both rated -> finalize: exchange ownership and build verdict.
+    if (room.ratings.p1 !== null && room.ratings.p2 !== null) {
+      room.phase = "endrated";
+      const avg = (room.ratings.p1 + room.ratings.p2) / 2;
+      const status = avg >= 5 ? "good" : "bad";
+      room.endResult = {
+        status,
+        avgRating: avg,
+        ratings: { p1: room.ratings.p1, p2: room.ratings.p2 },
+        // Ownership exchanged (like accept).
+        squishies: {
+          p1: [...room.squishies.p2],
+          p2: [...room.squishies.p1],
+        },
+        endProofs: {
+          p1: [...room.endProofs.p1],
+          p2: [...room.endProofs.p2],
+        },
+      };
+      room.tradeResult = {
+        status: status === "good" ? "success" : "bad",
+        message: status === "good"
+          ? "Trade Successful! Ownership exchanged."
+          : "Trade ended and rated as a bad trade.",
+        squishies: room.endResult.squishies,
+      };
+      console.log(`[submitRating] ${idx} rated ${val} in ${code}. End result: ${status}.`);
+    } else {
+      console.log(`[submitRating] ${idx} rated ${val} in ${code}. Waiting for other.`);
+    }
     ack && ack({ ok: true });
     emitRoomState(room);
   });
@@ -397,6 +561,7 @@ io.on("connection", (socket) => {
     room.tradeResult = null;
     room.originalOwners = {};
     room.addRequestedBy = null;
+    initEndTradeFields(room);
 
     // If host left, promote the remaining player
     if (room.hostId === socket.id) {

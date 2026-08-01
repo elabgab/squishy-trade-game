@@ -98,9 +98,67 @@
     </div>
     <p class="turn-hint" id="myTurnHint">Waiting...</p>
     <div class="player-controls">
+      <button id="endTradeBtn" class="btn btn-outline end-trade">🔚 END TRADE</button>
       <button id="leaveBtn" class="btn btn-outline danger">🚪 LEAVE GAME</button>
     </div>
   </section>
+</div>
+
+<!-- ============================================= -->
+<!-- END TRADE CONSENT OVERLAY -->
+<!-- ============================================= -->
+<div id="endConsentOverlay" class="overlay hidden">
+  <div class="consent-box">
+    <div class="consent-emoji">🔚</div>
+    <h2>END TRADE REQUEST</h2>
+    <p id="endConsentText">Player wants to end the trade. Do you agree?</p>
+    <div class="consent-actions">
+      <button id="endConsentAgree" class="btn btn-accept">✔ AGREE</button>
+      <button id="endConsentCancel" class="btn btn-decline">✖ CANCEL</button>
+    </div>
+    <p class="consent-hint" id="endConsentHint">Both players must agree to end the trade and exchange squishies.</p>
+  </div>
+</div>
+
+<!-- ============================================= -->
+<!-- END TRADE PROOF MODAL (landscape) -->
+<!-- ============================================= -->
+<div id="endProofModal" class="overlay hidden">
+  <div class="proof-modal">
+    <h2 class="proof-title">TRADE COMPLETE — SHOW YOUR PROOF</h2>
+    <p class="proof-sub">Upload a screenshot of the squishy you received, then rate the trade.</p>
+    <div class="proof-body">
+      <!-- Left: my screenshot -->
+      <div class="proof-panel">
+        <h3 id="proofMyLabel">YOUR SCREENSHOT</h3>
+        <div class="proof-upload" id="proofMyUpload">
+          <button id="proofUploadBtn" class="btn btn-upload">📸 UPLOAD SCREENSHOT</button>
+          <div class="proof-preview" id="proofMyPreview">
+            <span class="proof-placeholder">No screenshot yet</span>
+          </div>
+        </div>
+      </div>
+      <!-- Right: opponent's screenshot -->
+      <div class="proof-panel">
+        <h3 id="proofOppLabel">OPPONENT'S SCREENSHOT</h3>
+        <div class="proof-upload">
+          <div class="proof-preview" id="proofOppPreview">
+            <span class="proof-placeholder">Waiting for opponent's screenshot...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="proof-rating">
+      <span class="rating-label bad">BAD</span>
+      <input type="range" id="ratingSlider" min="0" max="10" value="5">
+      <span class="rating-label good">GOOD</span>
+      <span class="rating-value" id="ratingValue">5</span>
+    </div>
+    <div class="proof-actions">
+      <button id="ratingSubmitBtn" class="btn btn-primary">SUBMIT RATING</button>
+      <p class="proof-status" id="proofStatus">Waiting for both ratings...</p>
+    </div>
+  </div>
 </div>
 
 <!-- ============================================= -->
@@ -122,9 +180,10 @@
 </div>
 
 <!-- ============================================= -->
-<!-- FILE UPLOAD INPUT -->
+<!-- FILE UPLOAD INPUTS -->
 <!-- ============================================= -->
 <input type="file" id="fileInput" accept="image/*" hidden>
+<input type="file" id="proofInput" accept="image/*" hidden>
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="game.js"></script>

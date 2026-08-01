@@ -635,3 +635,240 @@ body {
   border-color: rgba(178, 141, 255, 0.3);
   opacity: 0.9;
 }
+
+/* =============================================
+   Player controls (End Trade / Leave Game)
+   ============================================= */
+.player-controls {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+  justify-content: center;
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--ink);
+  border: 2px solid #e0cbd8;
+  padding: 10px 18px;
+  font-size: 14px;
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.btn-outline:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: var(--pink);
+  background: rgba(255, 143, 177, 0.08);
+}
+
+.btn-outline.danger:hover:not(:disabled) {
+  border-color: var(--red);
+  background: rgba(255, 107, 107, 0.08);
+}
+
+.end-trade {
+  border-color: #d6c6ff;
+  color: var(--purple-dark);
+}
+
+.end-trade:hover:not(:disabled) {
+  border-color: var(--purple);
+  background: rgba(178, 141, 255, 0.1);
+}
+
+/* =============================================
+   End Trade Consent Overlay
+   ============================================= */
+.consent-box {
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(12px);
+  border-radius: 28px;
+  padding: 32px 34px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  border: 3px solid #fff;
+  animation: pop-in 0.4s ease;
+}
+
+.consent-emoji {
+  font-size: 52px;
+  margin-bottom: 6px;
+}
+
+.consent-box h2 {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+
+.consent-box p {
+  font-size: 15px;
+  color: #7a6b82;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.consent-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 22px;
+  justify-content: center;
+}
+
+.consent-actions .btn {
+  flex: 1;
+  padding: 12px;
+  font-size: 15px;
+}
+
+.consent-hint {
+  margin-top: 16px;
+  font-size: 12px;
+  color: #b0a0b8;
+}
+
+/* =============================================
+   End Trade Proof Modal
+   ============================================= */
+.proof-modal {
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(12px);
+  border-radius: 28px;
+  padding: 28px 30px;
+  max-width: 860px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+  border: 3px solid #fff;
+  animation: pop-in 0.4s ease;
+}
+
+.proof-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--purple-dark);
+}
+
+.proof-sub {
+  font-size: 14px;
+  color: #9a8ba5;
+  font-weight: 600;
+  margin: 6px 0 18px;
+}
+
+.proof-body {
+  display: flex;
+  gap: 18px;
+  align-items: stretch;
+}
+
+.proof-panel {
+  flex: 1;
+  background: var(--soft);
+  border-radius: 18px;
+  padding: 16px;
+  border: 2px solid #fff;
+}
+
+.proof-panel h3 {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--pink-dark);
+  margin-bottom: 10px;
+}
+
+.proof-preview {
+  min-height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.proof-preview img {
+  width: 100%;
+  max-width: 260px;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 3px solid #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.proof-placeholder {
+  color: #c0aebd;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.proof-upload .btn {
+  font-size: 13px;
+  padding: 10px 14px;
+}
+
+.proof-rating {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 20px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 16px;
+  border: 2px solid #f3e0ea;
+}
+
+.rating-label {
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+
+.rating-label.bad { color: var(--red); }
+.rating-label.good { color: var(--green); }
+
+#ratingSlider {
+  flex: 1;
+  max-width: 260px;
+  accent-color: var(--purple);
+  height: 6px;
+  cursor: pointer;
+}
+
+.rating-value {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--purple-dark);
+  min-width: 30px;
+}
+
+.proof-actions {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.proof-status {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--purple-dark);
+  min-height: 18px;
+}
+
+/* =============================================
+   Responsive tweaks for proof modal
+   ============================================= */
+@media (max-width: 720px) {
+  .proof-modal { padding: 20px 16px; }
+  .proof-body { flex-direction: column; }
+  .proof-preview img { max-width: 100%; }
+}
