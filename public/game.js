@@ -249,7 +249,8 @@ function updateTradeMessage(state) {
     const oppCount = (state.squishies[playerIndex === "p1" ? "p2" : "p1"] || []).length;
 
     if (myCount === 0 && oppCount === 0) {
-      tradeMessage.textContent = "📍 Player 1 offers the first squishy!";
+      const firstPlayer = state.pendingAdd === "p1" ? "Player 1" : "Player 2";
+      tradeMessage.textContent = "📍 " + firstPlayer + " offers the first squishy!";
     } else if (myCount === 0 && oppCount > 0) {
       tradeMessage.textContent = waitingForMeToUpload()
         ? "🙌 Opponent offered! Upload your counter-offer."

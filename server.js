@@ -157,7 +157,8 @@ io.on("connection", (socket) => {
 
     // Both players connected => start the trade
     room.phase = "offers";
-    room.pendingAdd = "p1"; // Player 1 uploads first
+    // Randomly select which player uploads the first squishy
+    room.pendingAdd = Math.random() < 0.5 ? "p1" : "p2";
     console.log(`[joinRoom] ${name} joined ${code}`);
 
     ack && ack({ ok: true, code, playerIndex: "p2" });
@@ -196,8 +197,10 @@ io.on("connection", (socket) => {
         room.pendingAdd = null;
         room.accepted = { p1: false, p2: false };
       } else {
-        // P1 offered, now P2's turn
-        room.pendingAdd = "p2";
+        // One offer submitted — hand off to the OTHER player so they can
+        // make the counter-offer (works regardless of who was randomly
+        // selected to upload first).
+        room.pendingAdd = idx === "p1" ? "p2" : "p1";
       }
     } else if (room.phase === "negotiating") {
       // After an addition, back to the other player
@@ -332,7 +335,8 @@ io.on("connection", (socket) => {
 
     room.squishies = { p1: [], p2: [] };
     room.phase = "offers";
-    room.pendingAdd = "p1";
+    // Randomly select which player uploads the first squishy
+    room.pendingAdd = Math.random() < 0.5 ? "p1" : "p2";
     room.accepted = { p1: false, p2: false };
     room.tradeResult = null;
     room.originalOwners = {};
