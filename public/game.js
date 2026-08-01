@@ -220,9 +220,14 @@ declineBtn.addEventListener("click", () => {
 // New trade
 // ------------------------------------------------------------
 newTradeBtn.addEventListener("click", () => {
+  // Optimistically close the result overlay and reset the local interface
+  // for a new trade. The server broadcast resets the other player too.
+  hide(resultOverlay);
+  myTurnHint.textContent = "";
   socket.emit("restartTrade", (res) => {
     if (!res.ok) {
       myTurnHint.textContent = "❌ " + (res.error || "Restart failed.");
+      show(resultOverlay);
     }
   });
 });
@@ -370,6 +375,10 @@ function showResult(state) {
     resultText.textContent = "Bad Trade — all squishies returned to their original owners.";
   }
 
+  // Both successful and bad trade overlays offer a NEW TRADE button so
+  // either player can reset the interface for a fresh trading session.
+  newTradeBtn.classList.remove("hidden");
+
   // Show received / restored squishies
   const mySquishiesAfter = result.squishies && result.squishies[playerIndex];
   resultSquishies.innerHTML = "";
@@ -413,6 +422,15 @@ function onGameStart() {
 // Room state update
 socket.on("roomState", (state) => {
   gameRoomCode.textContent = "ROOM: " + (state.code || "");
+
+  // If a NEW TRADE was started by either player, the phase moves back to
+  // "offers" — hide the result overlay on BOTH screens and reset for a
+  // fresh trading session.
+  if (state.phase !== "success" && state.phase !== "bad") {
+    hide(resultOverlay);
+    myTurnHint.textContent = "";
+    newTradeBtn.classList.add("hidden");
+  }
 
   // Waiting phase
   if (state.phase === "waiting") {
