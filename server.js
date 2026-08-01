@@ -100,11 +100,12 @@ function initEndTradeFields(room) {
 function resetTradeState(room) {
   room.squishies = { p1: [], p2: [] };
   room.phase = "offers";
-  room.pendingAdd = null;
+  // Randomly select which player uploads the first squishy
+  room.pendingAdd = Math.random() < 0.5 ? "p1" : "p2";
   room.accepted = { p1: false, p2: false };
   room.tradeResult = null;
   room.originalOwners = {};
-  // Start: Player 1 uploads initial offer
+  // Start: a random player uploads the initial offer
   emitRoomState(room);
 }
 
@@ -200,9 +201,9 @@ io.on("connection", (socket) => {
     socket.data.playerIndex = "p2";
 
     // Both players connected => start the trade.
-    // Per the game spec, Player 1 initiates by uploading the first squishy.
+    // Randomly select which player uploads the first squishy.
     room.phase = "offers";
-    room.pendingAdd = "p1";
+    room.pendingAdd = Math.random() < 0.5 ? "p1" : "p2";
     console.log(`[joinRoom] ${name} joined ${code}`);
 
     ack && ack({ ok: true, code, playerIndex: "p2" });
@@ -380,8 +381,8 @@ io.on("connection", (socket) => {
 
     room.squishies = { p1: [], p2: [] };
     room.phase = "offers";
-    // Player 1 initiates the new trading session
-    room.pendingAdd = "p1";
+    // Randomly select which player uploads the first squishy of the new trade
+    room.pendingAdd = Math.random() < 0.5 ? "p1" : "p2";
     room.accepted = { p1: false, p2: false };
     room.tradeResult = null;
     room.originalOwners = {};
