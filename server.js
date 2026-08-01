@@ -248,24 +248,15 @@ io.on("connection", (socket) => {
         room.pendingAdd = idx === "p1" ? "p2" : "p1";
       }
     } else if (room.phase === "negotiating") {
-      const other = idx === "p1" ? "p2" : "p1";
-
-      // Asymmetric additions apply ONLY when Player 1 requested more images
-      // (e.g. Player 1 is trading a high-value image and asks Player 2 to
-      // upload several squishies in return). In that case the requested
-      // player KEEPS the turn so they can keep uploading without Player 1
-      // having to match quantity.
-      // If Player 2 requested the addition, the turn alternates back as usual.
-      if (room.addRequestedBy === "p1") {
-        room.pendingAdd = idx;
-        room.accepted = { p1: false, p2: false }; // Adding resets accept flags
-        // Keep addRequestedBy so the add-request context stays active.
-      } else {
-        // Normal alternating turn: hand back to the other player.
-        room.pendingAdd = other;
-        room.accepted = { p1: false, p2: false }; // Adding resets accept flags
-        room.addRequestedBy = null; // clear the pending add request
-      }
+      // The uploaded image satisfies the + ADD request — exactly ONE upload
+      // per request. Reset back to the negotiation decision state so the
+      // requesting player can review the updated offer, then press + ADD
+      // again (requesting exactly one more squishy), Accept, or Decline.
+      // There is no limit to how many times this loop can repeat, and every
+      // uploaded image stays visible in the trade window as it grows.
+      room.pendingAdd = null;
+      room.accepted = { p1: false, p2: false }; // Adding resets accept flags
+      room.addRequestedBy = null; // clear the pending add request
     }
 
     console.log(`[uploadOffer] ${idx} uploaded in ${code}`);
