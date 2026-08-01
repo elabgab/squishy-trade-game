@@ -49,6 +49,8 @@ const resultTitle = $("resultTitle");
 const resultText = $("resultText");
 const resultSquishies = $("resultSquishies");
 const newTradeBtn = $("newTradeBtn");
+const rateSlider = $("rateSlider");
+const ratingValue = $("ratingValue");
 
 // ------------------------------------------------------------
 // Local state
@@ -236,14 +238,30 @@ declineBtn.addEventListener("click", () => {
 });
 
 // ------------------------------------------------------------
+// Trade rating slicer (Good / Bad)
+// ------------------------------------------------------------
+function getRatingLabel() {
+  // Slider: min 1 = BAD TRADE, max 2 = GOOD TRADE
+  return Number(rateSlider.value) === 1 ? "BAD TRADE 😢" : "GOOD TRADE 😊";
+}
+
+function updateRatingLabel() {
+  ratingValue.textContent = getRatingLabel();
+}
+
+rateSlider.addEventListener("input", updateRatingLabel);
+
+// ------------------------------------------------------------
 // New trade
 // ------------------------------------------------------------
 newTradeBtn.addEventListener("click", () => {
+  // Capture the rating selected on the slicer before resetting
+  const rating = getRatingLabel();
   // Optimistically close the result overlay and reset the local interface
   // for a new trade. The server broadcast resets the other player too.
   hide(resultOverlay);
   myTurnHint.textContent = "";
-  socket.emit("restartTrade", (res) => {
+  socket.emit("restartTrade", { rating }, (res) => {
     if (!res.ok) {
       myTurnHint.textContent = "❌ " + (res.error || "Restart failed.");
       show(resultOverlay);
@@ -398,6 +416,10 @@ function showResult(state) {
   // Both successful and bad trade overlays offer a NEW TRADE button so
   // either player can reset the interface for a fresh trading session.
   newTradeBtn.classList.remove("hidden");
+
+  // Reset the trade rating slicer to a clean default (GOOD TRADE)
+  rateSlider.value = "2";
+  updateRatingLabel();
 
   // Show received / restored squishies
   const mySquishiesAfter = result.squishies && result.squishies[playerIndex];

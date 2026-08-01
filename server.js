@@ -322,7 +322,12 @@ io.on("connection", (socket) => {
   });
 
   // --- Restart trade (new trading session) --------------------------
-  socket.on("restartTrade", (ack) => {
+  socket.on("restartTrade", (payload, ack) => {
+    // Support both old calls (single ack) and new calls ({ rating }, ack)
+    if (typeof payload === "function") {
+      ack = payload;
+      payload = {};
+    }
     const code = getRoomForSocket(socket.id);
     if (!code) return ack && ack({ ok: false, error: "Not in a room." });
     const room = rooms.get(code);
@@ -332,6 +337,10 @@ io.on("connection", (socket) => {
     if (room.phase !== "success" && room.phase !== "bad") {
       return ack && ack({ ok: false, error: "No finished trade to restart." });
     }
+
+    // Capture the trade rating selected on the slicer (e.g. "GOOD TRADE 😊")
+    const rating = (payload && payload.rating) || "NOT RATED";
+    console.log(`[restartTrade] previous trade rated: ${rating} in ${code}`);
 
     room.squishies = { p1: [], p2: [] };
     room.phase = "offers";

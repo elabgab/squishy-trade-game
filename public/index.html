@@ -109,6 +109,18 @@
       <div class="result-emoji" id="resultEmoji">🎉</div>
       <h2 id="resultTitle">Trade Successful!</h2>
       <p id="resultText">Ownership exchanged!</p>
+
+      <!-- Trade rating slicer -->
+      <div class="rating-block">
+        <p class="rating-label">RATE THIS TRADE</p>
+        <div class="slicer-wrap">
+          <span class="slicer-end bad">😢 BAD TRADE</span>
+          <input type="range" id="rateSlider" min="1" max="2" step="1" value="2">
+          <span class="slicer-end good">GOOD TRADE 😊</span>
+        </div>
+        <p class="rating-value" id="ratingValue">GOOD TRADE 😊</p>
+      </div>
+
       <button id="newTradeBtn" class="btn btn-primary result-btn">NEW TRADE</button>
     </div>
     <div class="result-squishies" id="resultSquishies"></div>
