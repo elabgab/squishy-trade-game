@@ -623,6 +623,60 @@ body {
   color: var(--purple-dark);
 }
 
+/* Shared ratings (both players' slicer results) */
+.ratings-shared {
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px 12px;
+  background: #fff;
+  border-radius: 16px;
+  border: 2px solid #f0d9e3;
+}
+
+.ratings-shared-title {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #b09db8;
+  margin-bottom: 8px;
+}
+
+.rating-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.rating-name {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--ink);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rating-chip {
+  font-size: 12px;
+  font-weight: 800;
+  padding: 3px 12px;
+  border-radius: 14px;
+  background: #f4edf4;
+  color: #9a8ba5;
+  white-space: nowrap;
+}
+
+.rating-chip.good {
+  background: #d4f0e0;
+  color: #2a8f6a;
+}
+
+.rating-chip.bad {
+  background: #ffe0e0;
+  color: var(--red);
+}
+
 .result-squishies {
   flex: 1;
   min-width: 0;

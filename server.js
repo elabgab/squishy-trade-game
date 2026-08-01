@@ -68,6 +68,7 @@ function emitRoomState(room) {
     pendingAdd: room.pendingAdd,
     accepted: room.accepted,
     addRequestedBy: room.addRequestedBy || null,
+    ratings: room.ratings || { p1: null, p2: null },
     tradeResult: room.tradeResult || null,
   };
   io.to(room.code).emit("roomState", payload);
@@ -107,6 +108,7 @@ io.on("connection", (socket) => {
       phase: "waiting", // waiting for a second player
       pendingAdd: null,
       accepted: { p1: false, p2: false },
+      ratings: { p1: null, p2: null }, // slicer ratings shared between players
       tradeResult: null,
       originalOwners: {},
     };
@@ -155,10 +157,10 @@ io.on("connection", (socket) => {
     socket.join(code);
     socket.data.playerIndex = "p2";
 
-    // Both players connected => start the trade
+    // Both players connected => start the trade.
+    // Per the game spec, Player 1 initiates by uploading the first squishy.
     room.phase = "offers";
-    // Randomly select which player uploads the first squishy
-    room.pendingAdd = Math.random() < 0.5 ? "p1" : "p2";
+    room.pendingAdd = "p1";
     console.log(`[joinRoom] ${name} joined ${code}`);
 
     ack && ack({ ok: true, code, playerIndex: "p2" });
@@ -321,6 +323,30 @@ io.on("connection", (socket) => {
     emitRoomState(room);
   });
 
+  // --- Rate trade (slicer rating shared between players) -------------
+  socket.on("rateTrade", (rating, ack) => {
+    const code = getRoomForSocket(socket.id);
+    if (!code) return ack && ack({ ok: false, error: "Not in a room." });
+    const room = rooms.get(code);
+    if (!room) return ack && ack({ ok: false, error: "Room missing." });
+
+    // Only allow rating while the result is showing (success or bad trade)
+    if (room.phase !== "success" && room.phase !== "bad") {
+      return ack && ack({ ok: false, error: "Cannot rate at this stage." });
+    }
+
+    const idx = socket.data.playerIndex;
+    const clean = (rating === "BAD TRADE 😢" || rating === "GOOD TRADE 😊")
+      ? rating
+      : (rating === "bad" ? "BAD TRADE 😢" : "GOOD TRADE 😊");
+    room.ratings = room.ratings || { p1: null, p2: null };
+    room.ratings[idx] = clean;
+
+    console.log(`[rateTrade] ${idx} rated in ${code}: ${clean}`);
+    ack && ack({ ok: true });
+    emitRoomState(room);
+  });
+
   // --- Restart trade (new trading session) --------------------------
   socket.on("restartTrade", (payload, ack) => {
     // Support both old calls (single ack) and new calls ({ rating }, ack)
@@ -338,15 +364,17 @@ io.on("connection", (socket) => {
       return ack && ack({ ok: false, error: "No finished trade to restart." });
     }
 
-    // Capture the trade rating selected on the slicer (e.g. "GOOD TRADE 😊")
-    const rating = (payload && payload.rating) || "NOT RATED";
-    console.log(`[restartTrade] previous trade rated: ${rating} in ${code}`);
+    // Log the ratings each player chose on their slicer (shared live ratings)
+    const r1 = (room.ratings && room.ratings.p1) || (payload && payload.rating) || "NOT RATED";
+    const r2 = (room.ratings && room.ratings.p2) || "NOT RATED";
+    console.log(`[restartTrade] Player 1 rated: ${r1} | Player 2 rated: ${r2} in ${code}`);
 
     room.squishies = { p1: [], p2: [] };
     room.phase = "offers";
-    // Randomly select which player uploads the first squishy
-    room.pendingAdd = Math.random() < 0.5 ? "p1" : "p2";
+    // Player 1 initiates the new trading session
+    room.pendingAdd = "p1";
     room.accepted = { p1: false, p2: false };
+    room.ratings = { p1: null, p2: null }; // clear ratings for the new trade
     room.tradeResult = null;
     room.originalOwners = {};
     room.addRequestedBy = null;
@@ -388,10 +416,12 @@ io.on("connection", (socket) => {
     if (room.hostId === socket.id) {
       room.hostId = room.players[0].id;
     }
-    // Remaining player becomes p1
+    // Remaining player becomes p1 again (they will initiate the next trade)
     for (const p of room.players) {
-      io.sockets.sockets.get(p.id)?.data.playerIndex === undefined;
+      const s = io.sockets.sockets.get(p.id);
+      if (s) s.data.playerIndex = "p1";
     }
+    room.ratings = { p1: null, p2: null };
 
     console.log(`[disconnect] ${socket.id} left ${code}, back to waiting.`);
     io.to(code).emit("opponentLeft");
