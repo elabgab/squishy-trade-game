@@ -49,12 +49,6 @@ const resultTitle = $("resultTitle");
 const resultText = $("resultText");
 const resultSquishies = $("resultSquishies");
 const newTradeBtn = $("newTradeBtn");
-const rateSlider = $("rateSlider");
-const ratingValue = $("ratingValue");
-const ratingNameP1 = $("ratingNameP1");
-const ratingChipP1 = $("ratingChipP1");
-const ratingNameP2 = $("ratingNameP2");
-const ratingChipP2 = $("ratingChipP2");
 
 // ------------------------------------------------------------
 // Local state
@@ -242,35 +236,14 @@ declineBtn.addEventListener("click", () => {
 });
 
 // ------------------------------------------------------------
-// Trade rating slicer (Good / Bad)
-// ------------------------------------------------------------
-function getRatingLabel() {
-  // Slider: min 1 = BAD TRADE, max 2 = GOOD TRADE
-  return Number(rateSlider.value) === 1 ? "BAD TRADE 😢" : "GOOD TRADE 😊";
-}
-
-function updateRatingLabel() {
-  ratingValue.textContent = getRatingLabel();
-}
-
-// When the player slides the rating, broadcast it live so the OTHER player
-// sees the slicer result in real time (both players' ratings panel).
-rateSlider.addEventListener("input", () => {
-  updateRatingLabel();
-  socket.emit("rateTrade", getRatingLabel());
-});
-
-// ------------------------------------------------------------
 // New trade
 // ------------------------------------------------------------
 newTradeBtn.addEventListener("click", () => {
-  // Capture the rating selected on the slicer before resetting
-  const rating = getRatingLabel();
   // Optimistically close the result overlay and reset the local interface
   // for a new trade. The server broadcast resets the other player too.
   hide(resultOverlay);
   myTurnHint.textContent = "";
-  socket.emit("restartTrade", { rating }, (res) => {
+  socket.emit("restartTrade", (res) => {
     if (!res.ok) {
       myTurnHint.textContent = "❌ " + (res.error || "Restart failed.");
       show(resultOverlay);
@@ -406,31 +379,6 @@ function updateActions(state) {
 }
 
 // ------------------------------------------------------------
-// Render the shared ratings panel (both players' slicer results)
-// ------------------------------------------------------------
-function renderSharedRatings(state) {
-  const ratings = state.ratings || { p1: null, p2: null };
-
-  // Player 1 / host name
-  const p1Player = state.players.find((p) => p.isHost);
-  ratingNameP1.textContent = (p1Player && p1Player.name ? p1Player.name : "PLAYER 1").toUpperCase();
-
-  // Player 2 / guest name
-  const p2Player = state.players.find((p) => !p.isHost);
-  ratingNameP2.textContent = (p2Player && p2Player.name ? p2Player.name : "PLAYER 2").toUpperCase();
-
-  // P1 rating chip
-  const r1 = ratings.p1;
-  ratingChipP1.textContent = r1 ? r1 : "waiting...";
-  ratingChipP1.className = "rating-chip" + (r1 === "GOOD TRADE 😊" ? " good" : r1 === "BAD TRADE 😢" ? " bad" : "");
-
-  // P2 rating chip
-  const r2 = ratings.p2;
-  ratingChipP2.textContent = r2 ? r2 : "waiting...";
-  ratingChipP2.className = "rating-chip" + (r2 === "GOOD TRADE 😊" ? " good" : r2 === "BAD TRADE 😢" ? " bad" : "");
-}
-
-// ------------------------------------------------------------
 // Show result overlay
 // ------------------------------------------------------------
 function showResult(state) {
@@ -450,17 +398,6 @@ function showResult(state) {
   // Both successful and bad trade overlays offer a NEW TRADE button so
   // either player can reset the interface for a fresh trading session.
   newTradeBtn.classList.remove("hidden");
-
-  // Reset the trade rating slicer to a clean default (GOOD TRADE) only when
-  // the result modal is FIRST shown. On later roomState updates (e.g. when the
-  // opponent changes their rating) we must NOT override the player's slider.
-  if (resultOverlay.classList.contains("hidden")) {
-    rateSlider.value = "2";
-    updateRatingLabel();
-  }
-
-  // Render the shared ratings panel with both players' current slicer results
-  renderSharedRatings(state);
 
   // Show received / restored squishies
   const mySquishiesAfter = result.squishies && result.squishies[playerIndex];
