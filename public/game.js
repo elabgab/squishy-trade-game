@@ -167,17 +167,36 @@ fileInput.addEventListener("change", () => {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = (e) => {
-    const dataUrl = e.target.result;
-    // Tag the image with a timestamp to make it unique for ownership tracking
-    const taggedUrl = dataUrl + "#t=" + Date.now();
-    socket.emit("uploadOffer", taggedUrl, (res) => {
-      if (!res.ok) {
-        myTurnHint.textContent = "❌ " + (res.error || "Upload failed.");
-      } else {
-        myTurnHint.textContent = "✅ Squishy uploaded!";
-        fileInput.value = "";
-      }
-    });
+    const img = new Image();
+    img.onload = () => {
+      // Compress the image to a max of 500x500 before sending it, so every
+      // squishy (game grid + result modal) stays small and uniform.
+      const MAX = 500;
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      const width = Math.max(1, Math.round(img.width * scale));
+      const height = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+      const compressedUrl = canvas.toDataURL("image/jpeg", 0.85);
+      // Tag the image with a timestamp to make it unique for ownership tracking
+      const taggedUrl = compressedUrl + "#t=" + Date.now();
+      socket.emit("uploadOffer", taggedUrl, (res) => {
+        if (!res.ok) {
+          myTurnHint.textContent = "❌ " + (res.error || "Upload failed.");
+        } else {
+          myTurnHint.textContent = "✅ Squishy uploaded!";
+          fileInput.value = "";
+        }
+      });
+    };
+    img.onerror = () => {
+      myTurnHint.textContent = "❌ Could not read that image.";
+      fileInput.value = "";
+    };
+    img.src = e.target.result;
   };
   reader.readAsDataURL(file);
 });

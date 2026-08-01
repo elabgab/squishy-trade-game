@@ -502,44 +502,92 @@ body {
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(12px);
   border-radius: 32px;
-  padding: 36px 32px;
-  max-width: 420px;
+  padding: 30px 32px;
+  max-width: 920px;
   width: 100%;
   text-align: center;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
   border: 3px solid #fff;
   animation: pop-in 0.4s ease;
+  /* Crosswise / landscape layout: info on the left, squishies on the right */
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 26px;
+}
+
+.result-info {
+  flex: 0 0 260px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding-right: 26px;
+  border-right: 2px dashed #f0d9e3;
 }
 
 .result-emoji {
-  font-size: 72px;
-  margin-bottom: 6px;
+  font-size: 56px;
 }
 
 .result-box h2 {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 800;
-  margin-bottom: 4px;
 }
 
 .result-box p {
-  font-size: 16px;
+  font-size: 15px;
   color: #7a6b82;
   font-weight: 600;
-  margin-bottom: 16px;
+  line-height: 1.4;
+}
+
+.result-btn {
+  width: 100%;
+  font-size: 17px;
+  padding: 14px;
+  margin-top: 14px;
+  letter-spacing: 1px;
 }
 
 .result-squishies {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: center;
   gap: 10px;
-  justify-content: center;
-  margin: 16px 0;
+  max-height: 540px;
+  overflow-y: auto;
+  padding: 4px;
 }
 
-.result-squishies .squishy-card {
-  width: 80px;
-  height: 80px;
+.result-sub {
+  font-size: 13px;
+  font-weight: 700;
+  color: #9a8ba5;
+  letter-spacing: 1px;
+}
+
+.result-grid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+}
+
+/* Modal squishy images are compressed/displayed at 500x500 */
+.result-grid img {
+  width: 500px;
+  max-width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 20px;
+  border: 3px solid #fff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  background: #fff;
 }
 
 /* =============================================
@@ -551,6 +599,33 @@ body {
   .room-code { font-size: 38px; letter-spacing: 10px; }
   .squishy-card { width: 75px; height: 75px; }
   .action-buttons .btn { font-size: 13px; padding: 10px 14px; }
+}
+
+/* On narrow screens the landscape modal stacks vertically so the
+   NEW TRADE button stays visible and the images wrap below. */
+@media (max-width: 720px) {
+  .result-box {
+    flex-direction: column;
+    max-width: 420px;
+    padding: 24px 20px;
+    gap: 18px;
+  }
+  .result-info {
+    flex: none;
+    width: 100%;
+    padding-right: 0;
+    padding-bottom: 16px;
+    border-right: none;
+    border-bottom: 2px dashed #f0d9e3;
+  }
+  .result-squishies {
+    max-height: 320px;
+    width: 100%;
+  }
+  .result-grid img {
+    width: 100%;
+    max-width: 280px;
+  }
 }
 
 /* =============================================
